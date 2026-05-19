@@ -107,7 +107,7 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 
 .workspace { flex: 1; min-width: 0; padding: 24px; overflow: auto; }
 .save-bar { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
-.request-bar { display: grid; grid-template-columns: minmax(110px, 130px) minmax(0, 1fr) minmax(96px, 110px) minmax(96px, 110px); gap: 12px; margin-bottom: 18px; }
+.request-bar { display: grid; grid-template-columns: minmax(110px, 130px) minmax(0, 1fr) minmax(96px, 110px) minmax(86px, 100px) minmax(86px, 100px); gap: 12px; margin-bottom: 18px; }
 .save-bar select, .save-bar input, .request-bar select, .request-bar input, .body-actions select, .body-row input, .header-row input, textarea { border: 1px solid #334155; color: #f8fafc; background: #020617; border-radius: 10px; padding: 8px 12px; outline: none; font-size: 13px; }
 .save-bar button:not(.dropdown-trigger):not(.dropdown-option) { border: 0; color: white; background: #2563eb; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
 .save-bar button:not(.dropdown-trigger):not(.dropdown-option):hover { background: #3b82f6; }
@@ -252,7 +252,7 @@ pre { margin: 0; background: #020617; border: 1px solid #1e293b; padding: 16px; 
   .history-list { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   .workspace { padding: 18px; }
   .save-bar { grid-template-columns: 1fr; }
-  .request-bar { grid-template-columns: 110px 1fr 1fr 1fr; }
+  .request-bar { grid-template-columns: 110px 1fr 1fr 1fr 1fr; }
   .request-bar input { grid-column: 1 / -1; grid-row: 1; }
   .request-bar select, .request-bar .dropdown-container, .request-bar button { grid-row: 2; }
   .import-header { flex-direction: column; }
