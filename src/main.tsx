@@ -151,6 +151,8 @@ function App() {
   const [saveModalSelectedRequestId, setSaveModalSelectedRequestId] = useState('');
   const [bulkEditHeaders, setBulkEditHeaders] = useState(false);
   const [bulkHeadersRaw, setBulkHeadersRaw] = useState('');
+  const [bulkEditQuery, setBulkEditQuery] = useState(false);
+  const [bulkQueryRaw, setBulkQueryRaw] = useState('');
 
   const canHaveBody = !['GET', 'HEAD', 'DELETE'].includes(method);
 
@@ -427,6 +429,33 @@ function App() {
     setShowSaveModal(true);
   }
 
+  function toggleBulkQuery() {
+    if (!bulkEditQuery) {
+      setBulkQueryRaw(queryRows.map((r) => `${r.key}: ${r.value}`).join('\n'));
+      setBulkEditQuery(true);
+    } else {
+      applyBulkQuery(bulkQueryRaw);
+      setBulkEditQuery(false);
+    }
+  }
+
+  function handleBulkQueryChange(text: string) {
+    setBulkQueryRaw(text);
+    applyBulkQuery(text);
+  }
+
+  function applyBulkQuery(text: string) {
+    const rows: QueryRow[] = [];
+    for (const line of text.split('\n')) {
+      const idx = line.indexOf(':');
+      if (idx === -1) continue;
+      const key = line.slice(0, idx).trim();
+      const value = line.slice(idx + 1).trim();
+      if (key) rows.push({ id: uid(), key, value, enabled: true });
+    }
+    setUrlFromQueryRows(rows.length > 0 ? rows : [{ id: uid(), key: '', value: '', enabled: true }]);
+  }
+
   function doSaveRequest() {
     if (!saveModalCollectionId || !url.trim()) return;
     const now = new Date().toISOString();
@@ -465,8 +494,8 @@ function App() {
     if (!saved) return;
     setMethod(saved.method);
     setUrlPreservingQuery(saved.url);
-    if (saved.queryParams && saved.queryParams.length > 0) {
-      setQueryRows(saved.queryParams);
+    if (Array.isArray(saved.queryParams)) {
+      setQueryRows(saved.queryParams.length > 0 ? saved.queryParams : [{ id: uid(), key: '', value: '', enabled: true }]);
     }
     setHeaders(saved.headers);
     setBody(saved.body);
@@ -478,6 +507,8 @@ function App() {
     setSelectedCollectionId(collectionId);
     setResponse(null);
     setError('');
+    setBulkEditHeaders(false);
+    setBulkEditQuery(false);
   }
 
   function deleteSavedRequest(collectionId: string, requestId: string) {
@@ -798,18 +829,34 @@ function App() {
         <div className="panels">
           <section className="card request-card">
             <h2>Request</h2>
-            <div className="section-title">Query Params</div>
-            <div className="headers-table">
-              {queryRows.map((row) => (
-                <div className="header-row" key={row.id}>
-                  <input type="checkbox" checked={row.enabled} onChange={(e) => updateQueryRow(row.id, { enabled: e.target.checked })} />
-                  <input value={row.key} onChange={(e) => updateQueryRow(row.id, { key: e.target.value })} placeholder="Param" />
-                  <input value={row.value} onChange={(e) => updateQueryRow(row.id, { value: e.target.value })} placeholder="Value" />
-                  <button className="ghost" onClick={() => deleteQueryRow(row.id)}>×</button>
-                </div>
-              ))}
+            <div className="section-title">
+              Query Params
+              <button className="bulk-edit-toggle" onClick={toggleBulkQuery}>
+                {bulkEditQuery ? 'Key-Value' : 'Bulk Edit'}
+              </button>
             </div>
-            <button className="link-button" onClick={() => { const next = [...queryRows, { id: uid(), key: '', value: '', enabled: true }]; setUrlFromQueryRows(next); }}>+ Add param</button>
+            {bulkEditQuery ? (
+              <textarea
+                className="bulk-headers-input"
+                value={bulkQueryRaw}
+                onChange={(e) => handleBulkQueryChange(e.target.value)}
+                placeholder="page: 1&#10;limit: 20"
+              />
+            ) : (
+              <>
+                <div className="headers-table">
+                  {queryRows.map((row) => (
+                    <div className="header-row" key={row.id}>
+                      <input type="checkbox" checked={row.enabled} onChange={(e) => updateQueryRow(row.id, { enabled: e.target.checked })} />
+                      <input value={row.key} onChange={(e) => updateQueryRow(row.id, { key: e.target.value })} placeholder="Param" />
+                      <input value={row.value} onChange={(e) => updateQueryRow(row.id, { value: e.target.value })} placeholder="Value" />
+                      <button className="ghost" onClick={() => deleteQueryRow(row.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <button className="link-button" onClick={() => { const next = [...queryRows, { id: uid(), key: '', value: '', enabled: true }]; setUrlFromQueryRows(next); }}>+ Add param</button>
+              </>
+            )}
 
             <div className="section-title">
               Headers
