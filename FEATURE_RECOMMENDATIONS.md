@@ -4,7 +4,7 @@ Dokumen ini berisi rekomendasi fitur yang cocok diimplementasikan berikutnya unt
 
 ## Prioritas Tinggi
 
-### 1. Response Headers Tab
+### 1. Response Headers Tab ✅ DONE
 
 Tambahkan tab khusus untuk melihat response headers.
 
@@ -23,7 +23,7 @@ Tambahkan tab khusus untuk melihat response headers.
 
 ---
 
-### 2. Auth Helpers
+### 2. Auth Helpers ✅ DONE
 
 Tambahkan tab/section `Auth` untuk generate header authorization secara otomatis.
 
@@ -52,7 +52,7 @@ Tambahkan tab/section `Auth` untuk generate header authorization secara otomatis
 
 ---
 
-### 3. Environment Variables
+### 3. Environment Variables ✅ DONE
 
 Tambahkan environment variables seperti di Postman.
 
@@ -86,7 +86,7 @@ Tambahkan environment variables seperti di Postman.
 
 ---
 
-### 4. Import/Export Collections JSON
+### 4. Import/Export Collections JSON ✅ DONE
 
 Tambahkan fitur export/import collections ke file JSON lokal.
 
@@ -166,7 +166,7 @@ Implementasikan dukungan multipart/form-data di Rust HTTP engine.
 
 ---
 
-### 8. Query Params Editor
+### 8. Query Params Editor ✅ DONE
 
 Tambahkan UI khusus query params, bukan hanya mengetik manual di URL.
 
@@ -250,11 +250,11 @@ Tambahkan halaman settings.
 
 Urutan yang paling masuk akal:
 
-1. Response Headers Tab
-2. Auth Helpers
-3. Query Params Editor
-4. Environment Variables
-5. Import/Export Collections JSON
+1. Response Headers Tab ✅
+2. Auth Helpers ✅
+3. Query Params Editor ✅
+4. Environment Variables ✅
+5. Import/Export Collections JSON ✅
 6. Native Multipart Form-Data Support
 7. Folders di Collections
 8. Multi Tabs
@@ -265,13 +265,13 @@ Urutan yang paling masuk akal:
 
 Jika ingin fitur yang cepat terlihat hasilnya:
 
-- Response headers tab.
-- Copy response body button.
-- Clear history button.
-- Duplicate saved request.
-- Rename saved request.
-- Search/filter collections.
-- Status badge warna:
+- Response headers tab. ✅
+- Copy response body button. ✅
+- Clear history button. ✅
+- Duplicate saved request. ✅
+- Rename saved request. ✅
+- Search/filter collections. ✅
+- Status badge warna ✅:
   - 2xx hijau
   - 3xx biru
   - 4xx kuning/oranye
@@ -281,10 +281,10 @@ Jika ingin fitur yang cepat terlihat hasilnya:
 
 Untuk menjadikan aplikasi ini terasa jauh lebih lengkap, fokus pada:
 
-1. Auth Helpers
-2. Environment Variables
-3. Import/Export Collections
-4. Response Headers
+1. Auth Helpers ✅
+2. Environment Variables ✅
+3. Import/Export Collections ✅
+4. Response Headers ✅
 5. Native Multipart Form-Data
 
 Kelima fitur ini akan membuat aplikasi lebih praktis digunakan untuk workflow API development sehari-hari.
