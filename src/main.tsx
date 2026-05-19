@@ -1,8 +1,9 @@
-import React, { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import React, { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseCurl } from './curl';
 import { sendNativeHttpRequest } from './http';
 import { JsonTree, type JsonValue } from './JsonTree';
+import { importPostmanCollection, exportAsPostmanCollection } from './postman';
 import Dropdown from './Dropdown';
 import { loadJson, saveJson } from './storage';
 import type { AuthState, AuthType, Collection, HeaderRow, HttpMethod } from './types';
@@ -94,6 +95,7 @@ function App() {
   const [menuState, setMenuState] = useState<{ requestId: string; collectionId: string; rect: DOMRect; name: string } | null>(null);
   const [deleteTargetRequest, setDeleteTargetRequest] = useState<{ collectionId: string; requestId: string; name: string } | null>(null);
   const [showClearHistoryModal, setShowClearHistoryModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canHaveBody = !['GET', 'HEAD', 'DELETE'].includes(method);
 
@@ -463,6 +465,35 @@ function App() {
     }
   }
 
+  function handleImportCollection(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const { collection, requestCount } = importPostmanCollection(reader.result as string);
+        setCollections((prev) => [...prev, collection]);
+        setSelectedCollectionId(collection.id);
+        setToastMessage(`Imported "${collection.name}" (${requestCount} requests)`);
+      } catch (err) {
+        setToastMessage(err instanceof Error ? err.message : 'Failed to import collection.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  function handleExportCollection(collection: Collection) {
+    const json = exportAsPostmanCollection(collection);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${collection.name.replace(/[^a-zA-Z0-9]/g, '_')}.postman_collection.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   function importCurl() {
     try {
       const parsed = parseCurl(curlInput);
@@ -507,6 +538,10 @@ function App() {
         <button className="import-button" onClick={() => { setShowImportModal(true); setCurlInput(''); setImportMessage(''); }}>
           Import cURL
         </button>
+        <button className="import-button" onClick={() => fileInputRef.current?.click()} style={{ background: 'rgba(100,116,139,.14)', borderColor: '#64748b', color: '#cbd5e1' }}>
+          Import Collection
+        </button>
+        <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportCollection} style={{ display: 'none' }} />
         <div className="collections-header">
           <h3>Collections</h3>
           <button onClick={() => setShowCollectionModal(true)} title="New collection">+</button>
@@ -522,6 +557,7 @@ function App() {
               <summary>
                 <span>{collection.name}</span>
                 <small>{collection.requests.length}</small>
+                <button className="export-collection-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportCollection(collection); }} title="Export as Postman collection">↗</button>
               </summary>
               <div className="saved-request-list">
                 {collection.requests.map((saved) => (

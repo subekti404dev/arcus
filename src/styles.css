@@ -45,6 +45,8 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .collections-header { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
 .collections-header h3 { margin: 0; }
 .collections-header button { width: 30px; height: 30px; border: 1px solid #334155; color: #fed7aa; background: #1e293b; border-radius: 9px; cursor: pointer; font-weight: 900; }
+.export-collection-btn { border: 0; color: #64748b; background: transparent; cursor: pointer; font-size: 14px; padding: 0 4px; margin-left: auto; line-height: 1; }
+.export-collection-btn:hover { color: #cbd5e1; }
 .collection-list { display: grid; gap: 10px; margin-top: 12px; }
 .collection-item { border: 1px solid #273449; background: #111827; border-radius: 12px; overflow: hidden; }
 .collection-item summary { display: flex; justify-content: space-between; gap: 10px; padding: 10px; cursor: pointer; color: #e5e7eb; font-weight: 800; }
