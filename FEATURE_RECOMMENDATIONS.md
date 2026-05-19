@@ -147,7 +147,7 @@ Tambahkan kemampuan membuka beberapa request sekaligus dalam tab.
 
 ---
 
-### 7. Native Multipart Form-Data Support
+### 7. Native Multipart Form-Data Support ✅ DONE
 
 Implementasikan dukungan multipart/form-data di Rust HTTP engine.
 
@@ -255,7 +255,7 @@ Urutan yang paling masuk akal:
 3. Query Params Editor ✅
 4. Environment Variables ✅
 5. Import/Export Collections JSON ✅
-6. Native Multipart Form-Data Support
+6. Native Multipart Form-Data Support ✅ DONE
 7. Folders di Collections
 8. Multi Tabs
 9. Code Snippet Generator
@@ -285,6 +285,6 @@ Untuk menjadikan aplikasi ini terasa jauh lebih lengkap, fokus pada:
 2. Environment Variables ✅
 3. Import/Export Collections ✅
 4. Response Headers ✅
-5. Native Multipart Form-Data
+5. Native Multipart Form-Data ✅ DONE
 
 Kelima fitur ini akan membuat aplikasi lebih praktis digunakan untuk workflow API development sehari-hari.
