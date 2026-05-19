@@ -581,7 +581,6 @@ function App() {
             value={method}
             onChange={(v) => setMethod(v as HttpMethod)}
             options={methods.map((m) => ({ value: m, label: m }))}
-            className={methodColorClass(method)}
           />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter request URL" />
           <button onClick={copyAsCurl} disabled={!url.trim()} className="copy-curl-button">Copy cURL</button>
