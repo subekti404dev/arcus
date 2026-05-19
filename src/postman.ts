@@ -60,6 +60,7 @@ function convertRequest(item: PostmanItem): SavedRequest {
     method: (req.method.toUpperCase() as HttpMethod) || 'GET',
     url: req.url?.raw ?? '',
     headers,
+    queryParams: [],
     body: req.body?.raw ?? '',
     auth: defaultAuth(),
     createdAt: now(),

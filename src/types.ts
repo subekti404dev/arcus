@@ -7,12 +7,20 @@ export type HeaderRow = {
   enabled: boolean;
 };
 
+export type QueryRow = {
+  id: string;
+  key: string;
+  value: string;
+  enabled: boolean;
+};
+
 export type SavedRequest = {
   id: string;
   name: string;
   method: HttpMethod;
   url: string;
   headers: HeaderRow[];
+  queryParams: QueryRow[];
   body: string;
   auth: AuthState;
   createdAt: string;

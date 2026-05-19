@@ -6,7 +6,7 @@ import { JsonTree, type JsonValue } from './JsonTree';
 import { importPostmanCollection, exportAsPostmanCollection } from './postman';
 import Dropdown from './Dropdown';
 import { loadJson, saveJson } from './storage';
-import type { AuthState, AuthType, Collection, Environment, HeaderRow, HttpMethod } from './types';
+import type { AuthState, AuthType, Collection, Environment, HeaderRow, HttpMethod, QueryRow } from './types';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
 import './styles.css';
 type RequestHistory = {
@@ -74,6 +74,45 @@ function App() {
   const [body, setBody] = useState('');
   const [bodyType, setBodyType] = useState<BodyType>('raw');
   const [bodyRows, setBodyRows] = useState<BodyRow[]>(() => defaultBodyRows());
+  const [queryRows, setQueryRows] = useState<QueryRow[]>(() => [{ id: uid(), key: '', value: '', enabled: true }]);
+
+  function buildQueryString(rows: QueryRow[]): string {
+    const params = rows
+      .filter((r) => r.enabled && r.key.trim())
+      .map((r) => `${encodeURIComponent(r.key.trim())}=${encodeURIComponent(r.value)}`);
+    return params.length > 0 ? `?${params.join('&')}` : '';
+  }
+
+  function setUrlPreservingQuery(raw: string) {
+    const idx = raw.indexOf('?');
+    if (idx === -1) {
+      setUrl(raw);
+      return;
+    }
+    const newBase = raw.slice(0, idx);
+    const newSearch = raw.slice(idx + 1);
+    const newRows: QueryRow[] = [];
+    for (const pair of newSearch.split('&')) {
+      const eq = pair.indexOf('=');
+      if (eq === -1) {
+        if (pair.trim()) newRows.push({ id: uid(), key: decodeURIComponent(pair.trim()), value: '', enabled: true });
+      } else {
+        const k = decodeURIComponent(pair.slice(0, eq).trim());
+        const v = decodeURIComponent(pair.slice(eq + 1));
+        if (k) newRows.push({ id: uid(), key: k, value: v, enabled: true });
+      }
+    }
+    if (newRows.length === 0) newRows.push({ id: uid(), key: '', value: '', enabled: true });
+    setQueryRows(newRows);
+    setUrl(raw);
+  }
+
+  function setUrlFromQueryRows(rows: QueryRow[]) {
+    setQueryRows(rows);
+    const qs = buildQueryString(rows);
+    const base = url.split('?')[0] ?? '';
+    setUrl(qs ? `${base}${qs}` : base);
+  }
   const [response, setResponse] = useState<ResponseState | null>(null);
   const [history, setHistory] = useState<RequestHistory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -286,6 +325,16 @@ function App() {
     setBodyRows((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
   }
 
+  function updateQueryRow(id: string, patch: Partial<QueryRow>) {
+    const next = queryRows.map((row) => (row.id === id ? { ...row, ...patch } : row));
+    setUrlFromQueryRows(next);
+  }
+
+  function deleteQueryRow(id: string) {
+    const next = queryRows.filter((r) => r.id !== id);
+    setUrlFromQueryRows(next.length > 0 ? next : [{ id: uid(), key: '', value: '', enabled: true }]);
+  }
+
   function createCollection() {
     if (!newCollectionName.trim()) return;
     const now = new Date().toISOString();
@@ -391,7 +440,7 @@ function App() {
           ...collection,
           updatedAt: now,
           requests: collection.requests.map((request) => request.id === saveModalSelectedRequestId ? {
-            ...request, name, method, url, headers, body, auth, updatedAt: now,
+            ...request, name, method, url, headers, queryParams: queryRows, body, auth, updatedAt: now,
           } : request),
         };
       }
@@ -401,7 +450,7 @@ function App() {
         ...collection,
         updatedAt: now,
         requests: [
-          { id: newId, name, method, url, headers, body, auth, createdAt: now, updatedAt: now },
+          { id: newId, name, method, url, headers, queryParams: queryRows, body, auth, createdAt: now, updatedAt: now },
           ...collection.requests,
         ],
       };
@@ -415,7 +464,10 @@ function App() {
     const saved = collections.find((collection) => collection.id === collectionId)?.requests.find((request) => request.id === requestId);
     if (!saved) return;
     setMethod(saved.method);
-    setUrl(saved.url);
+    setUrlPreservingQuery(saved.url);
+    if (saved.queryParams && saved.queryParams.length > 0) {
+      setQueryRows(saved.queryParams);
+    }
     setHeaders(saved.headers);
     setBody(saved.body);
     setBodyType('raw');
@@ -605,7 +657,7 @@ function App() {
     try {
       const parsed = parseCurl(curlInput);
       setMethod(parsed.method);
-      setUrl(parsed.url);
+      setUrlPreservingQuery(parsed.url);
       setHeaders(parsed.headers);
       setBody(parsed.body);
       setBodyType('raw');
@@ -639,7 +691,7 @@ function App() {
       <div className="shell">
       <aside className="sidebar">
         <div className="brand">Arcus</div>
-        <button className="new-button" onClick={() => { setMethod('GET'); setUrl(''); setHeaders(defaultHeaders()); setBody(''); setBodyType('raw'); setBodyRows(defaultBodyRows()); setAuth(defaultAuth()); setRequestName(''); setActiveSavedRequestId(''); setResponse(null); setError(''); }}>
+        <button className="new-button" onClick={() => { setMethod('GET'); setUrlPreservingQuery(''); setHeaders(defaultHeaders()); setBody(''); setBodyType('raw'); setBodyRows(defaultBodyRows()); setAuth(defaultAuth()); setRequestName(''); setActiveSavedRequestId(''); setResponse(null); setError(''); }}>
           + New Request
         </button>
         <button className="import-button" onClick={() => { setShowImportModal(true); setCurlInput(''); setImportMessage(''); }}>
@@ -720,7 +772,7 @@ function App() {
         <div className="history-list">
           {history.length === 0 && <p className="muted">No requests yet.</p>}
           {history.map((item) => (
-            <button className="history-item" key={item.id} onClick={() => { setMethod(item.method); setUrl(item.url); }}>
+            <button className="history-item" key={item.id} onClick={() => { setMethod(item.method); setUrlPreservingQuery(item.url); }}>
               <strong className={item.method ? methodColorClass(item.method) : ''}>{item.method}</strong>
               <span>{item.url}</span>
               <small><span className={item.status ? statusBadgeClass(item.status) : 'status-err'}>{item.status ?? 'err'}</span> · {item.status ? `${item.durationMs}ms` : 'failed'} · {item.createdAt}</small>
@@ -736,7 +788,7 @@ function App() {
             onChange={(v) => setMethod(v as HttpMethod)}
             options={methods.map((m) => ({ value: m, label: m }))}
           />
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter request URL" />
+          <input value={url} onChange={(e) => setUrlPreservingQuery(e.target.value)} placeholder="Enter request URL" />
           <button onClick={sendRequest} disabled={loading || !url.trim()}>{loading ? 'Sending...' : 'Send'}</button>
           <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button">Save</button>
           <button onClick={copyAsCurl} disabled={!url.trim()} className="copy-curl-button">Copy cURL</button>
@@ -746,6 +798,19 @@ function App() {
         <div className="panels">
           <section className="card request-card">
             <h2>Request</h2>
+            <div className="section-title">Query Params</div>
+            <div className="headers-table">
+              {queryRows.map((row) => (
+                <div className="header-row" key={row.id}>
+                  <input type="checkbox" checked={row.enabled} onChange={(e) => updateQueryRow(row.id, { enabled: e.target.checked })} />
+                  <input value={row.key} onChange={(e) => updateQueryRow(row.id, { key: e.target.value })} placeholder="Param" />
+                  <input value={row.value} onChange={(e) => updateQueryRow(row.id, { value: e.target.value })} placeholder="Value" />
+                  <button className="ghost" onClick={() => deleteQueryRow(row.id)}>×</button>
+                </div>
+              ))}
+            </div>
+            <button className="link-button" onClick={() => { const next = [...queryRows, { id: uid(), key: '', value: '', enabled: true }]; setUrlFromQueryRows(next); }}>+ Add param</button>
+
             <div className="section-title">
               Headers
               <button className="bulk-edit-toggle" onClick={toggleBulkHeaders}>
