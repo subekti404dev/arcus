@@ -1059,6 +1059,26 @@ function App() {
     );
   }
 
+  function handleUrlPaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    const text = event.clipboardData.getData('text/plain').trim();
+    if (!text.toLowerCase().startsWith('curl ')) return;
+    
+    event.preventDefault();
+    try {
+      const parsed = parseCurl(text);
+      setMethod(parsed.method);
+      setUrlPreservingQuery(parsed.url);
+      setHeaders(parsed.headers);
+      setBody(parsed.body);
+      setBodyType('raw');
+      setToastMessage('Imported cURL from clipboard.');
+      window.setTimeout(() => setToastMessage(''), 2200);
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Could not parse cURL.');
+      window.setTimeout(() => setToastMessage(''), 2800);
+    }
+  }
+
   function importCurl() {
     try {
       const parsed = parseCurl(curlInput);
@@ -1203,7 +1223,7 @@ function App() {
             onChange={(v) => setMethod(v as HttpMethod)}
             options={methods.map((m) => ({ value: m, label: m }))}
           />
-          <input value={url} onChange={(e) => setUrlPreservingQuery(e.target.value)} placeholder="Enter request URL" />
+          <input value={url} onChange={(e) => setUrlPreservingQuery(e.target.value)} onPaste={handleUrlPaste} placeholder="Enter request URL" />
           <button onClick={sendRequest} disabled={loading || !url.trim()}>{loading ? 'Sending...' : 'Send'}</button>
           <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button">Save</button>
           <button onClick={() => setShowSnippetModal(true)} disabled={!url.trim()} className="snippet-button">Code</button>
