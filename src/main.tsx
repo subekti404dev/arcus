@@ -92,6 +92,7 @@ function App() {
   const [renameValue, setRenameValue] = useState('');
   const [menuState, setMenuState] = useState<{ requestId: string; collectionId: string; rect: DOMRect; name: string } | null>(null);
   const [deleteTargetRequest, setDeleteTargetRequest] = useState<{ collectionId: string; requestId: string; name: string } | null>(null);
+  const [showClearHistoryModal, setShowClearHistoryModal] = useState(false);
 
   const canHaveBody = !['GET', 'HEAD', 'DELETE'].includes(method);
 
@@ -549,7 +550,7 @@ function App() {
 
         <div className="history-header">
           <h3>History</h3>
-          {history.length > 0 && <button className="clear-history" onClick={() => { if (confirm('Clear all request history?')) setHistory([]); }} title="Clear history">Clear</button>}
+          {history.length > 0 && <button className="clear-history" onClick={() => setShowClearHistoryModal(true)} title="Clear history">Clear</button>}
         </div>
         <div className="history-list">
           {history.length === 0 && <p className="muted">No requests yet.</p>}
@@ -811,6 +812,24 @@ function App() {
             <div className="modal-actions">
               <button className="ghost-action" onClick={() => setDeleteTargetRequest(null)}>Cancel</button>
               <button className="danger-action" onClick={() => { deleteSavedRequest(deleteTargetRequest.collectionId, deleteTargetRequest.requestId); setDeleteTargetRequest(null); }}>Delete</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showClearHistoryModal && (
+        <div className="modal-backdrop" onClick={() => setShowClearHistoryModal(false)}>
+          <section className="modal-card compact-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="clear-history-title">
+            <div className="import-header">
+              <div>
+                <h2 id="clear-history-title">Clear History</h2>
+                <p>This will permanently delete all {history.length} request history entries.</p>
+              </div>
+              <button className="close-button" onClick={() => setShowClearHistoryModal(false)} aria-label="Close clear history modal">×</button>
+            </div>
+            <div className="modal-actions">
+              <button className="ghost-action" onClick={() => setShowClearHistoryModal(false)}>Cancel</button>
+              <button className="danger-action" onClick={() => { setHistory([]); setShowClearHistoryModal(false); }}>Clear All</button>
             </div>
           </section>
         </div>
