@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { parseCurl } from './curl';
 import { sendNativeHttpRequest } from './http';
 import { JsonTree, type JsonValue } from './JsonTree';
+import Dropdown from './Dropdown';
 import { loadJson, saveJson } from './storage';
 import type { AuthState, AuthType, Collection, HeaderRow, HttpMethod } from './types';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
@@ -566,18 +567,22 @@ function App() {
 
       <section className="workspace">
         <div className="save-bar">
-          <select value={selectedCollectionId} onChange={(event) => setSelectedCollectionId(event.target.value)}>
-            <option value="">Select collection</option>
-            {collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
-          </select>
+          <Dropdown
+            value={selectedCollectionId}
+            onChange={setSelectedCollectionId}
+            options={[{ value: '', label: 'Select collection' }, ...collections.map((c) => ({ value: c.id, label: c.name }))]}
+          />
           <input value={requestName} onChange={(event) => setRequestName(event.target.value)} placeholder="Request name" />
           <button onClick={saveCurrentRequest} disabled={!selectedCollectionId || !url.trim()}>{activeSavedRequestExists ? 'Update' : 'Save'}</button>
         </div>
 
         <div className="request-bar">
-          <select value={method} onChange={(e) => setMethod(e.target.value as HttpMethod)} className={methodColorClass(method)}>
-            {methods.map((item) => <option key={item}>{item}</option>)}
-          </select>
+          <Dropdown
+            value={method}
+            onChange={(v) => setMethod(v as HttpMethod)}
+            options={methods.map((m) => ({ value: m, label: m }))}
+            className={methodColorClass(method)}
+          />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter request URL" />
           <button onClick={copyAsCurl} disabled={!url.trim()} className="copy-curl-button">Copy cURL</button>
           <button onClick={sendRequest} disabled={loading || !url.trim()}>{loading ? 'Sending...' : 'Send'}</button>
@@ -603,12 +608,16 @@ function App() {
             <div className="auth-section">
               <div className="auth-header">
                 <div className="section-title">Auth</div>
-                <select value={auth.type} onChange={(event) => setAuth({ ...auth, type: event.target.value as AuthType })}>
-                  <option value="none">None</option>
-                  <option value="bearer">Bearer Token</option>
-                  <option value="basic">Basic Auth</option>
-                  <option value="apikey">API Key</option>
-                </select>
+                <Dropdown
+                  value={auth.type}
+                  onChange={(v) => setAuth({ ...auth, type: v as AuthType })}
+                  options={[
+                    { value: 'none', label: 'None' },
+                    { value: 'bearer', label: 'Bearer Token' },
+                    { value: 'basic', label: 'Basic Auth' },
+                    { value: 'apikey', label: 'API Key' },
+                  ]}
+                />
               </div>
               {auth.type === 'bearer' && (
                 <input
@@ -682,11 +691,16 @@ function App() {
             <div className="body-header">
               <div className="section-title">Body</div>
               <div className="body-actions">
-                <select value={bodyType} onChange={(event) => setBodyType(event.target.value as BodyType)} disabled={!canHaveBody}>
-                  <option value="raw">raw</option>
-                  <option value="form-data">form-data</option>
-                  <option value="x-www-form-urlencoded">x-www-form-urlencoded</option>
-                </select>
+                <Dropdown
+                  value={bodyType}
+                  onChange={(v) => setBodyType(v as BodyType)}
+                  options={[
+                    { value: 'raw', label: 'raw' },
+                    { value: 'form-data', label: 'form-data' },
+                    { value: 'x-www-form-urlencoded', label: 'x-www-form-urlencoded' },
+                  ]}
+                  disabled={!canHaveBody}
+                />
                 {bodyType === 'raw' && <button className="format-button" onClick={formatRequestBodyJson} disabled={!canHaveBody || !body.trim()}>Format JSON</button>}
               </div>
             </div>
