@@ -27,7 +27,7 @@ type ResponseState = {
 type BodyType = 'raw' | 'form-data' | 'x-www-form-urlencoded';
 type BodyRow = { id: string; key: string; value: string; enabled: boolean };
 
-const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const collectionsStorageKey = 'arcus:collections';
 
 function methodColorClass(method: string) {
@@ -93,7 +93,7 @@ function App() {
   const [menuState, setMenuState] = useState<{ requestId: string; collectionId: string; rect: DOMRect; name: string } | null>(null);
   const [deleteTargetRequest, setDeleteTargetRequest] = useState<{ collectionId: string; requestId: string; name: string } | null>(null);
 
-  const canHaveBody = !['GET', 'DELETE'].includes(method);
+  const canHaveBody = !['GET', 'HEAD', 'DELETE'].includes(method);
 
   function statusBadgeClass(status: number) {
     if (status < 300) return 'status-2xx';
