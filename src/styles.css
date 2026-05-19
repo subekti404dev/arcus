@@ -50,7 +50,7 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 
 /* ── Environment ── */
 .env-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
-.env-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #334155; color: #cbd5e1; background: #0f172a; border-radius: 8px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
+.env-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #334155; color: #cbd5e1; background: #0f172a; border-radius: 8px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
 .env-chip:hover { border-color: #64748b; }
 .env-chip-active { border-color: #f97316; color: #fed7aa; background: #1e293b; }
 .env-edit-btn { border: 0; color: #64748b; background: transparent; cursor: pointer; font-size: 11px; padding: 0; line-height: 1; }
