@@ -1,12 +1,12 @@
 [package]
-name = "postman-tauri"
+name = "arcus"
 version = "0.1.0"
-description = "A lightweight Postman-like API client built with Tauri"
+description = "A sleek API client built with Tauri"
 authors = ["urip"]
 edition = "2021"
 
 [lib]
-name = "postman_tauri_lib"
+name = "arcus_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

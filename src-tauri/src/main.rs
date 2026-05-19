@@ -1,3 +1,3 @@
 fn main() {
-    postman_tauri_lib::run()
+    arcus_lib::run()
 }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Postman Tauri",
+  "productName": "Arcus",
   "version": "0.1.0",
-  "identifier": "com.urip.postman-tauri",
+  "identifier": "com.urip.arcus",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Postman Tauri",
+        "title": "Arcus",
         "decorations": false,
         "width": 1280,
         "height": 820,

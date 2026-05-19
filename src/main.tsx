@@ -28,7 +28,7 @@ type BodyType = 'raw' | 'form-data' | 'x-www-form-urlencoded';
 type BodyRow = { id: string; key: string; value: string; enabled: boolean };
 
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-const collectionsStorageKey = 'postman-tauri:collections';
+const collectionsStorageKey = 'arcus:collections';
 
 function methodColorClass(method: string) {
   return `method-${method.toLowerCase()}`;
@@ -487,7 +487,7 @@ function App() {
       <header className="titlebar" data-tauri-drag-region>
         <div className="titlebar-brand" data-tauri-drag-region>
           <span className="app-dot" />
-          <strong data-tauri-drag-region>Postman<span>Tauri</span></strong>
+          <strong data-tauri-drag-region>Arcus</strong>
         </div>
         <div className="window-controls">
           <button onClick={minimizeWindow} aria-label="Minimize window">−</button>
@@ -497,7 +497,7 @@ function App() {
       </header>
       <div className="shell">
       <aside className="sidebar">
-        <div className="brand">Postman<span>Tauri</span></div>
+        <div className="brand">Arcus</div>
         <button className="new-button" onClick={() => { setMethod('GET'); setUrl(''); setHeaders(defaultHeaders()); setBody(''); setBodyType('raw'); setBodyRows(defaultBodyRows()); setAuth(defaultAuth()); setRequestName(''); setActiveSavedRequestId(''); setResponse(null); setError(''); }}>
           + New Request
         </button>

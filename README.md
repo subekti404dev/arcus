@@ -1,6 +1,6 @@
-# Postman Tauri
+# Arcus
 
-A lightweight Postman-like API client built with **Tauri + React + TypeScript**, not Electron.
+A sleek API client built with **Tauri + React + TypeScript**, not Electron.
 
 ## Features
 

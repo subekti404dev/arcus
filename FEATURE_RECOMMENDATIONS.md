@@ -1,4 +1,4 @@
-# Rekomendasi Fitur untuk Postman Tauri
+# Rekomendasi Fitur untuk Arcus
 
 Dokumen ini berisi rekomendasi fitur yang cocok diimplementasikan berikutnya untuk aplikasi Postman-like berbasis Tauri + React + TypeScript.
 

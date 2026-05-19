@@ -1,9 +1,9 @@
-# Session Handoff - Postman Tauri
+# Session Handoff — Arcus
 
 Project directory: `/mnt/ssd/Koding/personal/postman-tauri`
 
 ## Goal
-Build a Postman-like desktop API client using Tauri + React + TypeScript, not Electron.
+Build a sleek API client using Tauri + React + TypeScript, not Electron.
 
 ## Current status
 The project is implemented and builds successfully.
