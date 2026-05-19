@@ -38,3 +38,11 @@ export type Collection = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type Environment = {
+  id: string;
+  name: string;
+  variables: { key: string; value: string; enabled: boolean }[];
+  createdAt: string;
+  updatedAt: string;
+};

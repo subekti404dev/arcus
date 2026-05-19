@@ -6,7 +6,7 @@ import { JsonTree, type JsonValue } from './JsonTree';
 import { importPostmanCollection, exportAsPostmanCollection } from './postman';
 import Dropdown from './Dropdown';
 import { loadJson, saveJson } from './storage';
-import type { AuthState, AuthType, Collection, HeaderRow, HttpMethod } from './types';
+import type { AuthState, AuthType, Collection, Environment, HeaderRow, HttpMethod } from './types';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
 import './styles.css';
 type RequestHistory = {
@@ -31,6 +31,8 @@ type BodyRow = { id: string; key: string; value: string; enabled: boolean };
 
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const collectionsStorageKey = 'arcus:collections';
+const environmentsStorageKey = 'arcus:environments';
+const activeEnvStorageKey = 'arcus:activeEnv';
 
 function methodColorClass(method: string) {
   return `method-${method.toLowerCase()}`;
@@ -83,6 +85,12 @@ function App() {
   const [responseView, setResponseView] = useState<'preview' | 'raw' | 'headers'>('preview');
   const [auth, setAuth] = useState<AuthState>(() => defaultAuth());
   const [collections, setCollections] = useState<Collection[]>(() => loadJson<Collection[]>(collectionsStorageKey, []));
+  const [environments, setEnvironments] = useState<Environment[]>(() => loadJson<Environment[]>(environmentsStorageKey, []));
+  const [activeEnvironmentId, setActiveEnvironmentId] = useState<string>('');
+  const [showEnvEditor, setShowEnvEditor] = useState(false);
+  const [editingEnvId, setEditingEnvId] = useState<string>('');
+  const [envName, setEnvName] = useState('');
+  const [envVars, setEnvVars] = useState<{ key: string; value: string; enabled: boolean }[]>([{ key: '', value: '', enabled: true }]);
   const [selectedCollectionId, setSelectedCollectionId] = useState('');
   const [requestName, setRequestName] = useState('');
   const [activeSavedRequestId, setActiveSavedRequestId] = useState('');
@@ -131,13 +139,37 @@ function App() {
     saveJson(collectionsStorageKey, collections);
   }, [collections]);
 
+  useEffect(() => {
+    saveJson(environmentsStorageKey, environments);
+  }, [environments]);
+
+  useEffect(() => {
+    localStorage.setItem(activeEnvStorageKey, activeEnvironmentId);
+  }, [activeEnvironmentId]);
+
+  useEffect(() => {
+    const savedId = localStorage.getItem(activeEnvStorageKey);
+    if (savedId) setActiveEnvironmentId(savedId);
+  }, []);
+
+  const activeEnvironment = useMemo(() => environments.find((e) => e.id === activeEnvironmentId), [environments, activeEnvironmentId]);
+
+  function resolveVariables(text: string): string {
+    if (!activeEnvironment) return text;
+    return text.replace(/\{\{(\w+)\}\}/g, (_, name) => {
+      const variable = activeEnvironment.variables.find((v) => v.enabled && v.key === name);
+      return variable ? variable.value : `{{${name}}}`;
+    });
+  }
+
   const effectiveUrl = useMemo(() => {
+    let resolved = resolveVariables(url);
     if (auth.type === 'apikey' && auth.apiIn === 'query' && auth.apiKey.trim() && auth.apiValue.trim()) {
-      const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}${encodeURIComponent(auth.apiKey.trim())}=${encodeURIComponent(auth.apiValue.trim())}`;
+      const separator = resolved.includes('?') ? '&' : '?';
+      return `${resolved}${separator}${encodeURIComponent(auth.apiKey.trim())}=${encodeURIComponent(auth.apiValue.trim())}`;
     }
-    return url;
-  }, [url, auth]);
+    return resolved;
+  }, [url, auth, activeEnvironment]);
 
   const activeHeaders = useMemo(() => {
     return headers.reduce<Record<string, string>>((acc, row) => {
@@ -146,8 +178,10 @@ function App() {
     }, {});
   }, [headers]);
 
+  const resolvedBody = useMemo(() => resolveVariables(body), [body, activeEnvironment]);
+
   const encodedBody = useMemo(() => {
-    const rows = bodyRows.filter((row) => row.enabled && row.key.trim());
+    const rows = bodyRows.filter((row) => row.enabled && row.key.trim()).map((row) => ({ ...row, key: resolveVariables(row.key), value: resolveVariables(row.value) }));
     if (bodyType === 'x-www-form-urlencoded') {
       return new URLSearchParams(rows.map((row) => [row.key, row.value])).toString();
     }
@@ -174,7 +208,9 @@ function App() {
     }
 
     // User headers (can override auth if needed)
-    Object.assign(nextHeaders, activeHeaders);
+    Object.entries(activeHeaders).forEach(([key, value]) => {
+      nextHeaders[resolveVariables(key)] = resolveVariables(value);
+    });
 
     if (bodyType === 'x-www-form-urlencoded') {
       nextHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
@@ -211,7 +247,7 @@ function App() {
 
     try {
       const result = window.__TAURI_INTERNALS__
-        ? await sendNativeHttpRequest({ method, url: effectiveUrl, headers: Object.entries(requestHeaders).map(([key, value]) => ({ id: uid(), key, value, enabled: true })), body: canHaveBody && bodyType !== 'form-data' ? String(encodedBody) : body })
+        ? await sendNativeHttpRequest({ method, url: effectiveUrl, headers: Object.entries(requestHeaders).map(([key, value]) => ({ id: uid(), key, value, enabled: true })), body: canHaveBody && bodyType !== 'form-data' ? (bodyType === 'raw' ? resolvedBody : String(encodedBody)) : body })
         : await sendWithFetch();
 
       setResponse({
@@ -254,6 +290,39 @@ function App() {
     setSelectedCollectionId(collection.id);
     setNewCollectionName('');
     setShowCollectionModal(false);
+  }
+
+  function openEnvEditor(env?: Environment) {
+    if (env) {
+      setEditingEnvId(env.id);
+      setEnvName(env.name);
+      setEnvVars(env.variables.length > 0 ? env.variables : [{ key: '', value: '', enabled: true }]);
+    } else {
+      setEditingEnvId('');
+      setEnvName('');
+      setEnvVars([{ key: '', value: '', enabled: true }]);
+    }
+    setShowEnvEditor(true);
+  }
+
+  function saveEnvironment() {
+    if (!envName.trim()) return;
+    const now = new Date().toISOString();
+    const variables = envVars.filter((v) => v.key.trim());
+    if (editingEnvId) {
+      setEnvironments((prev) => prev.map((e) => e.id === editingEnvId ? { ...e, name: envName.trim(), variables, updatedAt: now } : e));
+    } else {
+      const env: Environment = { id: uid(), name: envName.trim(), variables, createdAt: now, updatedAt: now };
+      setEnvironments((prev) => [...prev, env]);
+      setActiveEnvironmentId(env.id);
+    }
+    setShowEnvEditor(false);
+  }
+
+  function deleteEnvironment(id: string) {
+    setEnvironments((prev) => prev.filter((e) => e.id !== id));
+    if (activeEnvironmentId === id) setActiveEnvironmentId('');
+    setShowEnvEditor(false);
   }
 
   function deleteCollection(collectionId: string) {
@@ -602,6 +671,26 @@ function App() {
           ))}
         </div>
 
+        <div className="collections-header" style={{ marginTop: 28 }}>
+          <h3>Environment</h3>
+          <button onClick={() => openEnvEditor()} title="New environment">+</button>
+        </div>
+        {environments.length > 0 && (
+          <div className="env-list">
+            {environments.map((env) => (
+              <span
+                key={env.id}
+                className={`env-chip ${env.id === activeEnvironmentId ? 'env-chip-active' : ''}`}
+                onClick={() => setActiveEnvironmentId(env.id === activeEnvironmentId ? '' : env.id)}
+              >
+                {env.name}
+                <button className="env-edit-btn" onClick={(e) => { e.stopPropagation(); openEnvEditor(env); }}>✎</button>
+              </span>
+            ))}
+          </div>
+        )}
+        {environments.length === 0 && <p className="muted small">No environments. Create one to use variables.</p>}
+
         <div className="history-header">
           <h3>History</h3>
           {history.length > 0 && <button className="clear-history" onClick={() => setShowClearHistoryModal(true)} title="Clear history">Clear</button>}
@@ -916,6 +1005,37 @@ function App() {
             <div className="modal-actions">
               <button className="ghost-action" onClick={() => { setCurlInput(''); setImportMessage(''); }}>Clear</button>
               <button className="secondary-button" onClick={importCurl} disabled={!curlInput.trim()}>Import</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showEnvEditor && (
+        <div className="modal-backdrop" onClick={() => setShowEnvEditor(false)}>
+          <section className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="env-editor-title">
+            <div className="import-header">
+              <div>
+                <h2 id="env-editor-title">{editingEnvId ? 'Edit Environment' : 'New Environment'}</h2>
+                <p>Define variables to use as {"{{name}}"} in URLs, headers, and body.</p>
+              </div>
+              <button className="close-button" onClick={() => setShowEnvEditor(false)} aria-label="Close environment editor">×</button>
+            </div>
+            <input className="modal-input" value={envName} onChange={(e) => setEnvName(e.target.value)} placeholder="Environment name (e.g. Development, Production)" style={{ marginBottom: 16 }} autoFocus />
+            <div className="env-vars-table">
+              {envVars.map((v, i) => (
+                <div className="header-row" key={i}>
+                  <input type="checkbox" checked={v.enabled} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], enabled: e.target.checked }; setEnvVars(next); }} />
+                  <input value={v.key} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], key: e.target.value }; setEnvVars(next); }} placeholder="VAR_NAME" />
+                  <input value={v.value} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], value: e.target.value }; setEnvVars(next); }} placeholder="value" />
+                  <button className="ghost" onClick={() => setEnvVars((prev) => prev.filter((_, j) => j !== i))}>×</button>
+                </div>
+              ))}
+            </div>
+            <button className="link-button" onClick={() => setEnvVars((prev) => [...prev, { key: '', value: '', enabled: true }])}>+ Add variable</button>
+            <div className="modal-actions" style={{ marginTop: 18 }}>
+              <button className="ghost-action" onClick={() => setShowEnvEditor(false)}>Cancel</button>
+              {editingEnvId && <button className="danger-action" onClick={() => deleteEnvironment(editingEnvId)} style={{ marginRight: 'auto' }}>Delete</button>}
+              <button className="secondary-button" onClick={saveEnvironment} disabled={!envName.trim()}>Save</button>
             </div>
           </section>
         </div>
