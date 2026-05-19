@@ -131,7 +131,7 @@ Tambahkan struktur folder untuk saved requests.
 
 ---
 
-### 6. Multi Tabs untuk Request
+### 6. Multi Tabs untuk Request ✅ DONE
 
 Tambahkan kemampuan membuka beberapa request sekaligus dalam tab.
 
@@ -257,7 +257,7 @@ Urutan yang paling masuk akal:
 5. Import/Export Collections JSON ✅
 6. Native Multipart Form-Data Support ✅ DONE
 7. Folders di Collections ✅
-8. Multi Tabs
+8. Multi Tabs ✅
 9. Code Snippet Generator
 10. Request Tests / Assertions
 

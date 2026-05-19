@@ -16,6 +16,8 @@ type RequestHistory = {
   status?: number;
   durationMs?: number;
   createdAt: string;
+  snapshot: RequestSnapshot;
+  response?: ResponseState;
 };
 
 type ResponseState = {
@@ -28,6 +30,29 @@ type ResponseState = {
 
 type BodyType = 'raw' | 'form-data' | 'x-www-form-urlencoded';
 type BodyRow = { id: string; key: string; value: string; enabled: boolean; fieldType: 'text' | 'file' };
+
+type RequestSnapshot = {
+  method: HttpMethod;
+  url: string;
+  headers: HeaderRow[];
+  queryRows: QueryRow[];
+  body: string;
+  bodyType: BodyType;
+  bodyRows: BodyRow[];
+  auth: AuthState;
+  requestName: string;
+  activeSavedRequestId: string;
+  selectedCollectionId: string;
+  response: ResponseState | null;
+  error: string;
+};
+
+type RequestTab = {
+  id: string;
+  title: string;
+  dirty: boolean;
+  snapshot: RequestSnapshot;
+};
 
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const collectionsStorageKey = 'arcus:collections';
@@ -67,7 +92,35 @@ function defaultAuth(): AuthState {
   return { type: 'none', bearerToken: '', basicUsername: '', basicPassword: '', apiKey: '', apiValue: '', apiIn: 'header' };
 }
 
+function createBlankSnapshot(): RequestSnapshot {
+  return {
+    method: 'GET',
+    url: '',
+    headers: defaultHeaders(),
+    queryRows: [{ id: uid(), key: '', value: '', enabled: true }],
+    body: '',
+    bodyType: 'raw',
+    bodyRows: defaultBodyRows(),
+    auth: defaultAuth(),
+    requestName: '',
+    activeSavedRequestId: '',
+    selectedCollectionId: '',
+    response: null,
+    error: '',
+  };
+}
+
+function tabTitle(snapshot: RequestSnapshot) {
+  return snapshot.requestName || snapshot.url || 'New Request';
+}
+
 function App() {
+  const [tabs, setTabs] = useState<RequestTab[]>(() => {
+    const snapshot = createBlankSnapshot();
+    snapshot.url = 'https://jsonplaceholder.typicode.com/todos/1';
+    return [{ id: uid(), title: tabTitle(snapshot), dirty: false, snapshot }];
+  });
+  const [activeTabId, setActiveTabId] = useState(() => tabs[0]?.id ?? '');
   const [method, setMethod] = useState<HttpMethod>('GET');
   const [url, setUrl] = useState('https://jsonplaceholder.typicode.com/todos/1');
   const [headers, setHeaders] = useState<HeaderRow[]>(() => defaultHeaders());
@@ -159,6 +212,31 @@ function App() {
   const [bulkHeadersRaw, setBulkHeadersRaw] = useState('');
   const [bulkEditQuery, setBulkEditQuery] = useState(false);
   const [bulkQueryRaw, setBulkQueryRaw] = useState('');
+  const hydratingTabRef = useRef(false);
+
+  function currentSnapshot(): RequestSnapshot {
+    return { method, url, headers, queryRows, body, bodyType, bodyRows, auth, requestName, activeSavedRequestId, selectedCollectionId, response, error };
+  }
+
+  function applySnapshot(snapshot: RequestSnapshot) {
+    hydratingTabRef.current = true;
+    setMethod(snapshot.method);
+    setUrl(snapshot.url);
+    setHeaders(snapshot.headers);
+    setQueryRows(snapshot.queryRows.length > 0 ? snapshot.queryRows : [{ id: uid(), key: '', value: '', enabled: true }]);
+    setBody(snapshot.body);
+    setBodyType(snapshot.bodyType);
+    setBodyRows(snapshot.bodyRows.length > 0 ? snapshot.bodyRows : defaultBodyRows());
+    setAuth(snapshot.auth);
+    setRequestName(snapshot.requestName);
+    setActiveSavedRequestId(snapshot.activeSavedRequestId);
+    setSelectedCollectionId(snapshot.selectedCollectionId);
+    setResponse(snapshot.response ?? null);
+    setError(snapshot.error ?? '');
+    setBulkEditHeaders(false);
+    setBulkEditQuery(false);
+    queueMicrotask(() => { hydratingTabRef.current = false; });
+  }
 
   const canHaveBody = !['GET', 'HEAD', 'DELETE'].includes(method);
 
@@ -185,6 +263,12 @@ function App() {
     }, []);
   }, [collections, searchQuery]);
   const responseJson = useMemo(() => response ? parseJson(response.body) : null, [response]);
+
+  useEffect(() => {
+    if (hydratingTabRef.current || !activeTabId) return;
+    const snapshot = currentSnapshot();
+    setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, title: tabTitle(snapshot), dirty: true, snapshot } : tab));
+  }, [method, url, headers, queryRows, body, bodyType, bodyRows, auth, requestName, activeSavedRequestId, selectedCollectionId, response, error]);
 
   useEffect(() => {
     saveJson(collectionsStorageKey, collections);
@@ -321,23 +405,28 @@ function App() {
           })
         : await sendWithFetch();
 
-      setResponse({
+      const nextResponse = {
         status: result.status,
         statusText: 'status_text' in result ? result.status_text : result.statusText,
         durationMs: 'duration_ms' in result ? Number(result.duration_ms) : result.durationMs,
         headers: result.headers,
         body: prettyJson(result.body),
-      });
+      };
+      const snapshot = { ...currentSnapshot(), url: effectiveUrl, response: nextResponse, error: '' };
+      setResponse(nextResponse);
       setResponseView('preview');
+      setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, snapshot } : tab));
       setHistory((items) => [
-        { id: uid(), method, url: effectiveUrl, status: result.status, durationMs: 'duration_ms' in result ? Number(result.duration_ms) : result.durationMs, createdAt: new Date().toLocaleString() },
+        { id: uid(), method, url: effectiveUrl, status: result.status, durationMs: nextResponse.durationMs, createdAt: new Date().toLocaleString(), snapshot, response: nextResponse },
         ...items.slice(0, 19),
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown request error';
+      const snapshot = { ...currentSnapshot(), url: effectiveUrl, response: null, error: message };
       setError(message);
+      setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, snapshot } : tab));
       setHistory((items) => [
-        { id: uid(), method, url: effectiveUrl, createdAt: new Date().toLocaleString() },
+        { id: uid(), method, url: effectiveUrl, createdAt: new Date().toLocaleString(), snapshot },
         ...items.slice(0, 19),
       ]);
     } finally {
@@ -361,6 +450,40 @@ function App() {
   function deleteQueryRow(id: string) {
     const next = queryRows.filter((r) => r.id !== id);
     setUrlFromQueryRows(next.length > 0 ? next : [{ id: uid(), key: '', value: '', enabled: true }]);
+  }
+
+  function setActiveTab(tabId: string) {
+    const current = currentSnapshot();
+    setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, title: tabTitle(current), snapshot: current } : tab));
+    const nextTab = tabs.find((tab) => tab.id === tabId);
+    if (!nextTab) return;
+    setActiveTabId(tabId);
+    applySnapshot(nextTab.snapshot);
+  }
+
+  function newTab(snapshot = createBlankSnapshot(), dirty = false) {
+    const tab: RequestTab = { id: uid(), title: tabTitle(snapshot), dirty, snapshot };
+    const current = currentSnapshot();
+    setTabs((items) => [...items.map((item) => item.id === activeTabId ? { ...item, title: tabTitle(current), snapshot: current } : item), tab]);
+    setActiveTabId(tab.id);
+    applySnapshot(snapshot);
+  }
+
+  function closeTab(tabId: string) {
+    if (tabs.length === 1) {
+      const blank = createBlankSnapshot();
+      setTabs([{ id: tabId, title: tabTitle(blank), dirty: false, snapshot: blank }]);
+      applySnapshot(blank);
+      return;
+    }
+    const index = tabs.findIndex((tab) => tab.id === tabId);
+    const nextTabs = tabs.filter((tab) => tab.id !== tabId);
+    setTabs(nextTabs);
+    if (tabId === activeTabId) {
+      const nextTab = nextTabs[Math.max(0, index - 1)] ?? nextTabs[0];
+      setActiveTabId(nextTab.id);
+      applySnapshot(nextTab.snapshot);
+    }
   }
 
   function createCollection() {
@@ -573,30 +696,38 @@ function App() {
       };
     }));
 
+    const savedId = saveModalSelectedRequestId || activeSavedRequestId;
+    const snapshot = { ...currentSnapshot(), requestName: name, activeSavedRequestId: savedId };
     setRequestName(name);
+    setActiveSavedRequestId(savedId);
+    setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, title: tabTitle(snapshot), dirty: false, snapshot } : tab));
     setShowSaveModal(false);
   }
 
-  function loadSavedRequest(collectionId: string, requestId: string) {
+  function loadSavedRequest(collectionId: string, requestId: string, openInNewTab = false) {
     const saved = collections.find((collection) => collection.id === collectionId)?.requests.find((request) => request.id === requestId);
     if (!saved) return;
-    setMethod(saved.method);
-    setUrlPreservingQuery(saved.url);
-    if (Array.isArray(saved.queryParams)) {
-      setQueryRows(saved.queryParams.length > 0 ? saved.queryParams : [{ id: uid(), key: '', value: '', enabled: true }]);
+    const snapshot: RequestSnapshot = {
+      method: saved.method,
+      url: saved.url,
+      headers: saved.headers,
+      queryRows: Array.isArray(saved.queryParams) && saved.queryParams.length > 0 ? saved.queryParams : [{ id: uid(), key: '', value: '', enabled: true }],
+      body: saved.body,
+      bodyType: 'raw',
+      bodyRows: defaultBodyRows(),
+      auth: saved.auth ?? defaultAuth(),
+      requestName: saved.name,
+      activeSavedRequestId: saved.id,
+      selectedCollectionId: collectionId,
+      response: null,
+      error: '',
+    };
+    if (openInNewTab) {
+      newTab(snapshot, false);
+      return;
     }
-    setHeaders(saved.headers);
-    setBody(saved.body);
-    setBodyType('raw');
-    setBodyRows(defaultBodyRows());
-    setAuth(saved.auth ?? defaultAuth());
-    setRequestName(saved.name);
-    setActiveSavedRequestId(saved.id);
-    setSelectedCollectionId(collectionId);
-    setResponse(null);
-    setError('');
-    setBulkEditHeaders(false);
-    setBulkEditQuery(false);
+    applySnapshot(snapshot);
+    setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, title: tabTitle(snapshot), dirty: false, snapshot } : tab));
   }
 
   function deleteSavedRequest(collectionId: string, requestId: string) {
@@ -782,7 +913,7 @@ function App() {
             <button onClick={() => setRenamingRequestId('')} title="Cancel rename">×</button>
           </div>
         ) : (
-          <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id)}>
+          <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id, true)}>
             <strong className={methodColorClass(saved.method)}>{saved.method}</strong>
             <span>{saved.name}</span>
           </button>
@@ -832,7 +963,7 @@ function App() {
       <div className="shell">
       <aside className="sidebar">
         <div className="brand">Arcus</div>
-        <button className="new-button" onClick={() => { setMethod('GET'); setUrlPreservingQuery(''); setHeaders(defaultHeaders()); setBody(''); setBodyType('raw'); setBodyRows(defaultBodyRows()); setAuth(defaultAuth()); setRequestName(''); setActiveSavedRequestId(''); setResponse(null); setError(''); }}>
+        <button className="new-button" onClick={() => newTab()}>
           + New Request
         </button>
         <button className="import-button" onClick={() => { setShowImportModal(true); setCurlInput(''); setImportMessage(''); }}>
@@ -913,7 +1044,7 @@ function App() {
         <div className="history-list">
           {history.length === 0 && <p className="muted">No requests yet.</p>}
           {history.map((item) => (
-            <button className="history-item" key={item.id} onClick={() => { setMethod(item.method); setUrlPreservingQuery(item.url); }}>
+            <button className="history-item" key={item.id} onClick={() => newTab(item.snapshot, false)}>
               <strong className={item.method ? methodColorClass(item.method) : ''}>{item.method}</strong>
               <span>{item.url}</span>
               <small><span className={item.status ? statusBadgeClass(item.status) : 'status-err'}>{item.status ?? 'err'}</span> · {item.status ? `${item.durationMs}ms` : 'failed'} · {item.createdAt}</small>
@@ -923,6 +1054,15 @@ function App() {
       </aside>
 
       <section className="workspace">
+        <div className="request-tabs">
+          {tabs.map((tab) => (
+            <button key={tab.id} className={`request-tab ${tab.id === activeTabId ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+              <span>{tab.dirty ? '• ' : ''}{tab.title}</span>
+              <button className="request-tab-close" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} title="Close tab">×</button>
+            </button>
+          ))}
+          <button className="request-tab-add" onClick={() => newTab()} title="New tab">+</button>
+        </div>
         <div className="request-bar">
           <Dropdown
             value={method}
