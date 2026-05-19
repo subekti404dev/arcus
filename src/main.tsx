@@ -4,7 +4,7 @@ import { parseCurl } from './curl';
 import { sendNativeHttpRequest } from './http';
 import { JsonTree, type JsonValue } from './JsonTree';
 import { loadJson, saveJson } from './storage';
-import type { Collection, HeaderRow, HttpMethod } from './types';
+import type { AuthState, AuthType, Collection, HeaderRow, HttpMethod } from './types';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
 import './styles.css';
 type RequestHistory = {
@@ -55,6 +55,10 @@ function defaultBodyRows(): BodyRow[] {
   return [{ id: uid(), key: '', value: '', enabled: true }];
 }
 
+function defaultAuth(): AuthState {
+  return { type: 'none', bearerToken: '', basicUsername: '', basicPassword: '', apiKey: '', apiValue: '', apiIn: 'header' };
+}
+
 function App() {
   const [method, setMethod] = useState<HttpMethod>('GET');
   const [url, setUrl] = useState('https://jsonplaceholder.typicode.com/todos/1');
@@ -71,6 +75,7 @@ function App() {
   const [toastMessage, setToastMessage] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [responseView, setResponseView] = useState<'preview' | 'raw' | 'headers'>('preview');
+  const [auth, setAuth] = useState<AuthState>(() => defaultAuth());
   const [collections, setCollections] = useState<Collection[]>(() => loadJson<Collection[]>(collectionsStorageKey, []));
   const [selectedCollectionId, setSelectedCollectionId] = useState('');
   const [requestName, setRequestName] = useState('');
@@ -89,6 +94,14 @@ function App() {
   useEffect(() => {
     saveJson(collectionsStorageKey, collections);
   }, [collections]);
+
+  const effectiveUrl = useMemo(() => {
+    if (auth.type === 'apikey' && auth.apiIn === 'query' && auth.apiKey.trim() && auth.apiValue.trim()) {
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}${encodeURIComponent(auth.apiKey.trim())}=${encodeURIComponent(auth.apiValue.trim())}`;
+    }
+    return url;
+  }, [url, auth]);
 
   const activeHeaders = useMemo(() => {
     return headers.reduce<Record<string, string>>((acc, row) => {
@@ -111,7 +124,22 @@ function App() {
   }, [body, bodyRows, bodyType]);
 
   const requestHeaders = useMemo(() => {
-    const nextHeaders = { ...activeHeaders };
+    const nextHeaders: Record<string, string> = {};
+
+    // Auth-generated headers
+    if (auth.type === 'bearer' && auth.bearerToken.trim()) {
+      nextHeaders['Authorization'] = `Bearer ${auth.bearerToken.trim()}`;
+    }
+    if (auth.type === 'basic' && auth.basicUsername.trim()) {
+      nextHeaders['Authorization'] = `Basic ${btoa(`${auth.basicUsername}:${auth.basicPassword}`)}`;
+    }
+    if (auth.type === 'apikey' && auth.apiIn === 'header' && auth.apiKey.trim() && auth.apiValue.trim()) {
+      nextHeaders[auth.apiKey.trim()] = auth.apiValue;
+    }
+
+    // User headers (can override auth if needed)
+    Object.assign(nextHeaders, activeHeaders);
+
     if (bodyType === 'x-www-form-urlencoded') {
       nextHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
     }
@@ -121,11 +149,11 @@ function App() {
       });
     }
     return nextHeaders;
-  }, [activeHeaders, bodyType]);
+  }, [activeHeaders, auth, bodyType]);
 
   async function sendWithFetch() {
     const startedAt = performance.now();
-    const res = await fetch(url, {
+    const res = await fetch(effectiveUrl, {
       method,
       headers: requestHeaders,
       body: canHaveBody && (bodyType !== 'raw' || body.trim()) ? encodedBody : undefined,
@@ -147,7 +175,7 @@ function App() {
 
     try {
       const result = window.__TAURI_INTERNALS__
-        ? await sendNativeHttpRequest({ method, url, headers: Object.entries(requestHeaders).map(([key, value]) => ({ id: uid(), key, value, enabled: true })), body: canHaveBody && bodyType !== 'form-data' ? String(encodedBody) : body })
+        ? await sendNativeHttpRequest({ method, url: effectiveUrl, headers: Object.entries(requestHeaders).map(([key, value]) => ({ id: uid(), key, value, enabled: true })), body: canHaveBody && bodyType !== 'form-data' ? String(encodedBody) : body })
         : await sendWithFetch();
 
       setResponse({
@@ -159,14 +187,14 @@ function App() {
       });
       setResponseView('preview');
       setHistory((items) => [
-        { id: uid(), method, url, status: result.status, durationMs: 'duration_ms' in result ? Number(result.duration_ms) : result.durationMs, createdAt: new Date().toLocaleString() },
+        { id: uid(), method, url: effectiveUrl, status: result.status, durationMs: 'duration_ms' in result ? Number(result.duration_ms) : result.durationMs, createdAt: new Date().toLocaleString() },
         ...items.slice(0, 19),
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown request error';
       setError(message);
       setHistory((items) => [
-        { id: uid(), method, url, createdAt: new Date().toLocaleString() },
+        { id: uid(), method, url: effectiveUrl, createdAt: new Date().toLocaleString() },
         ...items.slice(0, 19),
       ]);
     } finally {
@@ -227,6 +255,7 @@ function App() {
             url,
             headers,
             body,
+            auth,
             updatedAt: now,
           } : request),
         };
@@ -243,6 +272,7 @@ function App() {
             url,
             headers,
             body,
+            auth,
             createdAt: now,
             updatedAt: now,
           },
@@ -263,6 +293,7 @@ function App() {
     setBody(saved.body);
     setBodyType('raw');
     setBodyRows(defaultBodyRows());
+    setAuth(saved.auth ?? defaultAuth());
     setRequestName(saved.name);
     setActiveSavedRequestId(saved.id);
     setSelectedCollectionId(collectionId);
@@ -292,7 +323,7 @@ function App() {
   }
 
   async function copyAsCurl() {
-    const lines = [`curl ${shellQuote(url)}`];
+    const lines = [`curl ${shellQuote(effectiveUrl)}`];
 
     if (method !== 'GET') {
       lines.push(`  -X ${method}`);
@@ -374,6 +405,7 @@ function App() {
       setBody(parsed.body);
       setBodyType('raw');
       setBodyRows(defaultBodyRows());
+      setAuth(defaultAuth());
       setResponse(null);
       setError('');
       setRequestName('');
@@ -401,7 +433,7 @@ function App() {
       <div className="shell">
       <aside className="sidebar">
         <div className="brand">Postman<span>Tauri</span></div>
-        <button className="new-button" onClick={() => { setMethod('GET'); setUrl(''); setHeaders(defaultHeaders()); setBody(''); setBodyType('raw'); setBodyRows(defaultBodyRows()); setRequestName(''); setActiveSavedRequestId(''); setResponse(null); setError(''); }}>
+        <button className="new-button" onClick={() => { setMethod('GET'); setUrl(''); setHeaders(defaultHeaders()); setBody(''); setBodyType('raw'); setBodyRows(defaultBodyRows()); setAuth(defaultAuth()); setRequestName(''); setActiveSavedRequestId(''); setResponse(null); setError(''); }}>
           + New Request
         </button>
         <button className="import-button" onClick={() => { setShowImportModal(true); setImportMessage(''); }}>
@@ -484,6 +516,85 @@ function App() {
               ))}
             </div>
             <button className="link-button" onClick={() => setHeaders((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true }])}>+ Add header</button>
+
+            <div className="auth-section">
+              <div className="auth-header">
+                <div className="section-title">Auth</div>
+                <select value={auth.type} onChange={(event) => setAuth({ ...auth, type: event.target.value as AuthType })}>
+                  <option value="none">None</option>
+                  <option value="bearer">Bearer Token</option>
+                  <option value="basic">Basic Auth</option>
+                  <option value="apikey">API Key</option>
+                </select>
+              </div>
+              {auth.type === 'bearer' && (
+                <input
+                  value={auth.bearerToken}
+                  onChange={(event) => setAuth({ ...auth, bearerToken: event.target.value })}
+                  placeholder="Paste Bearer token..."
+                  className="auth-input"
+                  autoComplete="off"
+                />
+              )}
+              {auth.type === 'basic' && (
+                <div className="auth-fields">
+                  <input
+                    value={auth.basicUsername}
+                    onChange={(event) => setAuth({ ...auth, basicUsername: event.target.value })}
+                    placeholder="Username"
+                    autoComplete="off"
+                  />
+                  <input
+                    value={auth.basicPassword}
+                    onChange={(event) => setAuth({ ...auth, basicPassword: event.target.value })}
+                    placeholder="Password"
+                    type="password"
+                    autoComplete="off"
+                  />
+                </div>
+              )}
+              {auth.type === 'apikey' && (
+                <>
+                  <div className="auth-fields">
+                    <input
+                      value={auth.apiKey}
+                      onChange={(event) => setAuth({ ...auth, apiKey: event.target.value })}
+                      placeholder="Key name"
+                      autoComplete="off"
+                    />
+                    <input
+                      value={auth.apiValue}
+                      onChange={(event) => setAuth({ ...auth, apiValue: event.target.value })}
+                      placeholder="Key value"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="auth-apikey-location">
+                    <label>Send via:</label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="apikey-location"
+                        value="header"
+                        checked={auth.apiIn === 'header'}
+                        onChange={() => setAuth({ ...auth, apiIn: 'header' })}
+                      />
+                      Header
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="apikey-location"
+                        value="query"
+                        checked={auth.apiIn === 'query'}
+                        onChange={() => setAuth({ ...auth, apiIn: 'query' })}
+                      />
+                      Query Param
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="body-header">
               <div className="section-title">Body</div>

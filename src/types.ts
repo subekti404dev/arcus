@@ -14,8 +14,21 @@ export type SavedRequest = {
   url: string;
   headers: HeaderRow[];
   body: string;
+  auth: AuthState;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AuthType = 'none' | 'bearer' | 'basic' | 'apikey';
+
+export type AuthState = {
+  type: AuthType;
+  bearerToken: string;
+  basicUsername: string;
+  basicPassword: string;
+  apiKey: string;
+  apiValue: string;
+  apiIn: 'header' | 'query';
 };
 
 export type Collection = {
