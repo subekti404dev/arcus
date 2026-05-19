@@ -45,19 +45,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev libgtk-3-dev libayatana-appindicator3-dev
 
-      - name: Generate macOS icons
-        if: runner.os == 'macOS'
-        run: |
-          mkdir -p src-tauri/icons/arcus.iconset
-          for s in 16 32 128 256 512; do
-            sips -z $s $s src-tauri/icons/icon.png --out src-tauri/icons/arcus.iconset/icon_${s}x${s}.png
-            sips -z $((s*2)) $((s*2)) src-tauri/icons/icon.png --out src-tauri/icons/arcus.iconset/icon_${s}x${s}@2x.png
-          done
-          iconutil -c icns src-tauri/icons/arcus.iconset -o src-tauri/icons/icon.icns
-          rm -rf src-tauri/icons/arcus.iconset
-
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Generate platform icons
+        run: npx @tauri-apps/cli icon src-tauri/icons/icon.png
 
       - name: Build (no release)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
