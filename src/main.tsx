@@ -86,6 +86,7 @@ function App() {
   function setUrlPreservingQuery(raw: string) {
     const idx = raw.indexOf('?');
     if (idx === -1) {
+      setQueryRows([{ id: uid(), key: '', value: '', enabled: true }]);
       setUrl(raw);
       return;
     }
