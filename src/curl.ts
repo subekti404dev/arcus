@@ -113,6 +113,19 @@ export function parseCurl(command: string): ParsedCurl {
       continue;
     }
 
+    if (token === '-b' || token === '--cookie') {
+      if (!next) throw new Error(`${token} requires a cookie string.`);
+      const value = next;
+      const existing = headers.find((h) => h.key.toLowerCase() === 'cookie');
+      if (existing) {
+        existing.value = `${existing.value}; ${value}`;
+      } else {
+        headers.push({ id: uid(), key: 'Cookie', value, enabled: true });
+      }
+      index += 1;
+      continue;
+    }
+
     if (token === '-d' || token === '--data' || token === '--data-raw' || token === '--data-binary' || token === '--data-ascii' || token === '--data-urlencode') {
       if (!next) throw new Error(`${token} requires body data.`);
       body = body ? `${body}&${next}` : next;
@@ -121,7 +134,43 @@ export function parseCurl(command: string): ParsedCurl {
       continue;
     }
 
-    if (token === '-G' || token === '--get' || token === '-i' || token === '--include' || token === '-s' || token === '--silent' || token === '-L' || token === '--location' || token === '--compressed') {
+    if (token === '-A' || token === '--user-agent') {
+      if (!next) throw new Error(`${token} requires a value.`);
+      const existing = headers.find((h) => h.key.toLowerCase() === 'user-agent');
+      if (existing) existing.value = next;
+      else headers.push({ id: uid(), key: 'User-Agent', value: next, enabled: true });
+      index += 1;
+      continue;
+    }
+
+    if (token === '-e' || token === '--referer') {
+      if (!next) throw new Error(`${token} requires a value.`);
+      const existing = headers.find((h) => h.key.toLowerCase() === 'referer');
+      if (existing) existing.value = next;
+      else headers.push({ id: uid(), key: 'Referer', value: next, enabled: true });
+      index += 1;
+      continue;
+    }
+
+    if (token === '-u' || token === '--user') {
+      if (!next) throw new Error(`${token} requires a user:password value.`);
+      const encoded = btoa(next);
+      const existing = headers.find((h) => h.key.toLowerCase() === 'authorization');
+      const auth = `Basic ${encoded}`;
+      if (existing) existing.value = auth;
+      else headers.push({ id: uid(), key: 'Authorization', value: auth, enabled: true });
+      index += 1;
+      continue;
+    }
+
+    // Flags with no value argument
+    if (token === '-G' || token === '--get' || token === '-i' || token === '--include' || token === '-s' || token === '--silent' || token === '-L' || token === '--location' || token === '--compressed' || token === '-k' || token === '--insecure' || token === '-v' || token === '--verbose' || token === '-N' || token === '--no-buffer' || token === '-f' || token === '--fail') {
+      continue;
+    }
+
+    // Flags that take a value (consume the next token)
+    if (token === '-m' || token === '--max-time' || token === '--connect-timeout' || token === '-o' || token === '--output' || token === '-w' || token === '--write-out' || token === '--retry' || token === '--retry-delay' || token === '--resolve' || token === '--limit-rate' || token === '--proxy' || token === '--noproxy' || token === '--cacert' || token === '--cert' || token === '--key' || token === '--url') {
+      if (next) index += 1;
       continue;
     }
 
