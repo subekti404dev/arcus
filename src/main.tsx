@@ -478,6 +478,7 @@ function App() {
       setRequestName('');
       setActiveSavedRequestId('');
       setImportMessage('cURL imported successfully.');
+      setCurlInput('');
       setShowImportModal(false);
     } catch (err) {
       setImportMessage(err instanceof Error ? err.message : 'Failed to import cURL.');
@@ -503,7 +504,7 @@ function App() {
         <button className="new-button" onClick={() => { setMethod('GET'); setUrl(''); setHeaders(defaultHeaders()); setBody(''); setBodyType('raw'); setBodyRows(defaultBodyRows()); setAuth(defaultAuth()); setRequestName(''); setActiveSavedRequestId(''); setResponse(null); setError(''); }}>
           + New Request
         </button>
-        <button className="import-button" onClick={() => { setShowImportModal(true); setImportMessage(''); }}>
+        <button className="import-button" onClick={() => { setShowImportModal(true); setCurlInput(''); setImportMessage(''); }}>
           Import cURL
         </button>
         <div className="collections-header">
