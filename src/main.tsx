@@ -60,6 +60,7 @@ type RequestTab = {
   id: string;
   title: string;
   dirty: boolean;
+  sourceKey?: string;
   snapshot: RequestSnapshot;
 };
 
@@ -242,6 +243,7 @@ function App() {
   const [bulkEditQuery, setBulkEditQuery] = useState(false);
   const [bulkQueryRaw, setBulkQueryRaw] = useState('');
   const hydratingTabRef = useRef(false);
+  const tabsRef = useRef<RequestTab[]>(tabs);
 
   function currentSnapshot(): RequestSnapshot {
     return { method, url, headers, queryRows, body, bodyType, bodyRows, auth, requestName, activeSavedRequestId, selectedCollectionId, response, error };
@@ -292,6 +294,10 @@ function App() {
     }, []);
   }, [collections, searchQuery]);
   const responseJson = useMemo(() => response ? parseJson(response.body) : null, [response]);
+
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
 
   useEffect(() => {
     if (hydratingTabRef.current || !activeTabId) return;
@@ -511,30 +517,45 @@ function App() {
 
   function setActiveTab(tabId: string) {
     const current = currentSnapshot();
-    setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, title: tabTitle(current), snapshot: current } : tab));
-    const nextTab = tabs.find((tab) => tab.id === tabId);
+    const latestTabs = tabsRef.current;
+    const nextTab = latestTabs.find((tab) => tab.id === tabId);
     if (!nextTab) return;
+
+    const nextTabs = latestTabs.map((tab) => tab.id === activeTabId ? { ...tab, title: tabTitle(current), snapshot: current } : tab);
+    tabsRef.current = nextTabs;
+    setTabs(nextTabs);
     setActiveTabId(tabId);
     applySnapshot(nextTab.snapshot);
   }
 
-  function newTab(snapshot = createBlankSnapshot(), dirty = false) {
-    const tab: RequestTab = { id: uid(), title: tabTitle(snapshot), dirty, snapshot };
+  function newTab(snapshot = createBlankSnapshot(), dirty = false, sourceKey?: string) {
     const current = currentSnapshot();
-    setTabs((items) => [...items.map((item) => item.id === activeTabId ? { ...item, title: tabTitle(current), snapshot: current } : item), tab]);
-    setActiveTabId(tab.id);
-    applySnapshot(snapshot);
+    const latestTabs = tabsRef.current;
+    const existing = sourceKey ? latestTabs.find((tab) => tab.sourceKey === sourceKey) : undefined;
+    const nextTab = existing ?? { id: uid(), title: tabTitle(snapshot), dirty, sourceKey, snapshot };
+    const updatedTabs = latestTabs
+      .map((tab) => tab.id === activeTabId ? { ...tab, title: tabTitle(current), snapshot: current } : tab);
+    const nextTabs = existing ? updatedTabs : [...updatedTabs, nextTab];
+
+    tabsRef.current = nextTabs;
+    setTabs(nextTabs);
+    setActiveTabId(nextTab.id);
+    applySnapshot(nextTab.snapshot);
   }
 
   function closeTab(tabId: string) {
-    if (tabs.length === 1) {
+    const latestTabs = tabsRef.current;
+    if (latestTabs.length === 1) {
       const blank = createBlankSnapshot();
-      setTabs([{ id: tabId, title: tabTitle(blank), dirty: false, snapshot: blank }]);
+      const resetTabs = [{ id: tabId, title: tabTitle(blank), dirty: false, snapshot: blank }];
+      tabsRef.current = resetTabs;
+      setTabs(resetTabs);
       applySnapshot(blank);
       return;
     }
-    const index = tabs.findIndex((tab) => tab.id === tabId);
-    const nextTabs = tabs.filter((tab) => tab.id !== tabId);
+    const index = latestTabs.findIndex((tab) => tab.id === tabId);
+    const nextTabs = latestTabs.filter((tab) => tab.id !== tabId);
+    tabsRef.current = nextTabs;
     setTabs(nextTabs);
     if (tabId === activeTabId) {
       const nextTab = nextTabs[Math.max(0, index - 1)] ?? nextTabs[0];
@@ -780,7 +801,7 @@ function App() {
       error: '',
     };
     if (openInNewTab) {
-      newTab(snapshot, false);
+      newTab(snapshot, false, `saved:${collectionId}:${requestId}`);
       return;
     }
     applySnapshot(snapshot);
@@ -1142,7 +1163,7 @@ function App() {
         <div className="history-list">
           {history.length === 0 && <p className="muted">No requests yet.</p>}
           {history.map((item) => (
-            <button className="history-item" key={item.id} onClick={() => newTab(item.snapshot, false)}>
+            <button className="history-item" key={item.id} onClick={() => newTab(item.snapshot, false, `history:${item.id}`)}>
               <strong className={item.method ? methodColorClass(item.method) : ''}>{item.method}</strong>
               <span>{item.url}</span>
               <small><span className={item.status ? statusBadgeClass(item.status) : 'status-err'}>{item.status ?? 'err'}</span> · {item.status ? `${item.durationMs}ms` : 'failed'} · {item.createdAt}</small>
