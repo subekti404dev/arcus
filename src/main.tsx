@@ -87,6 +87,7 @@ function App() {
   const [renamingRequestId, setRenamingRequestId] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [menuState, setMenuState] = useState<{ requestId: string; collectionId: string; rect: DOMRect; name: string } | null>(null);
+  const [deleteTargetRequest, setDeleteTargetRequest] = useState<{ collectionId: string; requestId: string; name: string } | null>(null);
 
   const canHaveBody = !['GET', 'DELETE'].includes(method);
 
@@ -734,7 +735,7 @@ function App() {
           <div className="menu-dropdown" style={{ position: 'fixed', top: menuState.rect.bottom + 4, right: window.innerWidth - menuState.rect.right, zIndex: 100 }}>
             <button onClick={() => { duplicateSavedRequest(menuState.collectionId, menuState.requestId); setMenuState(null); }}>⧉ Duplicate</button>
             <button onClick={() => { startRename(menuState.requestId, menuState.name); setMenuState(null); }}>✎ Rename</button>
-            <button className="menu-danger" onClick={() => { deleteSavedRequest(menuState.collectionId, menuState.requestId); setMenuState(null); }}>× Delete</button>
+            <button className="menu-danger" onClick={() => { setDeleteTargetRequest({ collectionId: menuState.collectionId, requestId: menuState.requestId, name: menuState.name }); setMenuState(null); }}>× Delete</button>
           </div>
         </>
       )}
@@ -775,6 +776,27 @@ function App() {
             <div className="modal-actions">
               <button className="ghost-action" onClick={() => setDeleteTargetCollectionId('')}>Cancel</button>
               <button className="danger-action" onClick={() => deleteCollection(deleteTargetCollectionId)}>Delete</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {deleteTargetRequest && (
+        <div className="modal-backdrop" onClick={() => setDeleteTargetRequest(null)}>
+          <section className="modal-card compact-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-request-title">
+            <div className="import-header">
+              <div>
+                <h2 id="delete-request-title">Delete Request</h2>
+                <p>This will permanently delete the saved request.</p>
+              </div>
+              <button className="close-button" onClick={() => setDeleteTargetRequest(null)} aria-label="Close delete request modal">×</button>
+            </div>
+            <div className="delete-summary">
+              <strong>{deleteTargetRequest.name}</strong>
+            </div>
+            <div className="modal-actions">
+              <button className="ghost-action" onClick={() => setDeleteTargetRequest(null)}>Cancel</button>
+              <button className="danger-action" onClick={() => { deleteSavedRequest(deleteTargetRequest.collectionId, deleteTargetRequest.requestId); setDeleteTargetRequest(null); }}>Delete</button>
             </div>
           </section>
         </div>
