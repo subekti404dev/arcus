@@ -111,7 +111,7 @@ function App() {
   function setUrlFromQueryRows(rows: QueryRow[]) {
     setQueryRows(rows);
     const qs = buildQueryString(rows);
-    const base = url.split('?')[0] ?? '';
+    const base = (url.split('?')[0] ?? '').trim();
     setUrl(qs ? `${base}${qs}` : base);
   }
   const [response, setResponse] = useState<ResponseState | null>(null);
