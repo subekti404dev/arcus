@@ -114,7 +114,7 @@ Tambahkan fitur export/import collections ke file JSON lokal.
 
 ## Prioritas Menengah
 
-### 5. Folders di dalam Collections
+### 5. Folders di dalam Collections ✅ DONE
 
 Tambahkan struktur folder untuk saved requests.
 
@@ -256,7 +256,7 @@ Urutan yang paling masuk akal:
 4. Environment Variables ✅
 5. Import/Export Collections JSON ✅
 6. Native Multipart Form-Data Support ✅ DONE
-7. Folders di Collections
+7. Folders di Collections ✅
 8. Multi Tabs
 9. Code Snippet Generator
 10. Request Tests / Assertions

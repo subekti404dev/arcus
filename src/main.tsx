@@ -6,7 +6,7 @@ import { JsonTree, type JsonValue } from './JsonTree';
 import { importPostmanCollection, exportAsPostmanCollection } from './postman';
 import Dropdown from './Dropdown';
 import { loadJson, saveJson } from './storage';
-import type { AuthState, AuthType, Collection, Environment, HeaderRow, HttpMethod, QueryRow } from './types';
+import type { AuthState, AuthType, Collection, CollectionFolder, Environment, HeaderRow, HttpMethod, QueryRow } from './types';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
 import './styles.css';
 type RequestHistory = {
@@ -137,6 +137,10 @@ function App() {
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [deleteTargetCollectionId, setDeleteTargetCollectionId] = useState('');
+  const [folderModalCollectionId, setFolderModalCollectionId] = useState('');
+  const [folderModalName, setFolderModalName] = useState('');
+  const [editingFolderId, setEditingFolderId] = useState('');
+  const [deleteTargetFolder, setDeleteTargetFolder] = useState<{ collectionId: string; folderId: string; name: string; requestCount: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [renamingRequestId, setRenamingRequestId] = useState('');
   const [renameValue, setRenameValue] = useState('');
@@ -148,6 +152,7 @@ function App() {
   // Save modal
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveModalCollectionId, setSaveModalCollectionId] = useState('');
+  const [saveModalFolderId, setSaveModalFolderId] = useState('');
   const [saveModalNewName, setSaveModalNewName] = useState('');
   const [saveModalSelectedRequestId, setSaveModalSelectedRequestId] = useState('');
   const [bulkEditHeaders, setBulkEditHeaders] = useState(false);
@@ -411,9 +416,68 @@ function App() {
     setDeleteTargetCollectionId(collectionId);
   }
 
-  const saveModalRequests = useMemo(() => {
-    return collections.find((c) => c.id === saveModalCollectionId)?.requests ?? [];
+  function openFolderModal(collectionId: string, folder?: CollectionFolder) {
+    setFolderModalCollectionId(collectionId);
+    setEditingFolderId(folder?.id ?? '');
+    setFolderModalName(folder?.name ?? '');
+  }
+
+  function saveFolder() {
+    if (!folderModalCollectionId || !folderModalName.trim()) return;
+    const now = new Date().toISOString();
+    setCollections((items) => items.map((collection) => {
+      if (collection.id !== folderModalCollectionId) return collection;
+      const folders = collection.folders ?? [];
+      if (editingFolderId) {
+        return {
+          ...collection,
+          updatedAt: now,
+          folders: folders.map((folder) => folder.id === editingFolderId ? { ...folder, name: folderModalName.trim(), updatedAt: now } : folder),
+        };
+      }
+      return {
+        ...collection,
+        updatedAt: now,
+        folders: [{ id: uid(), name: folderModalName.trim(), createdAt: now, updatedAt: now }, ...folders],
+      };
+    }));
+    setFolderModalCollectionId('');
+    setEditingFolderId('');
+    setFolderModalName('');
+  }
+
+  function openDeleteFolderModal(collectionId: string, folder: CollectionFolder) {
+    const collection = collections.find((item) => item.id === collectionId);
+    const requestCount = collection?.requests.filter((request) => request.folderId === folder.id).length ?? 0;
+    setDeleteTargetFolder({ collectionId, folderId: folder.id, name: folder.name, requestCount });
+  }
+
+  function deleteFolder() {
+    if (!deleteTargetFolder) return;
+    const now = new Date().toISOString();
+    setCollections((items) => items.map((collection) => {
+      if (collection.id !== deleteTargetFolder.collectionId) return collection;
+      return {
+        ...collection,
+        updatedAt: now,
+        folders: (collection.folders ?? []).filter((folder) => folder.id !== deleteTargetFolder.folderId),
+        requests: collection.requests.map((request) => request.folderId === deleteTargetFolder.folderId ? { ...request, folderId: undefined, updatedAt: now } : request),
+      };
+    }));
+    setDeleteTargetFolder(null);
+  }
+
+  const saveModalCollection = useMemo(() => {
+    return collections.find((c) => c.id === saveModalCollectionId);
   }, [collections, saveModalCollectionId]);
+
+  const saveModalFolders = useMemo(() => {
+    return saveModalCollection?.folders ?? [];
+  }, [saveModalCollection]);
+
+  const saveModalRequests = useMemo(() => {
+    return (saveModalCollection?.requests ?? []).filter((request) => (request.folderId ?? '') === saveModalFolderId);
+  }, [saveModalCollection, saveModalFolderId]);
 
   function toggleBulkHeaders() {
     if (!bulkEditHeaders) {
@@ -444,8 +508,11 @@ function App() {
 
   function openSaveModal() {
     if (!url.trim()) return;
+    const collectionId = selectedCollectionId || (collections.length > 0 ? collections[0].id : '');
+    const activeSavedRequest = collections.find((collection) => collection.id === collectionId)?.requests.find((request) => request.id === activeSavedRequestId);
     setSaveModalNewName(requestName || `${method} ${url}`);
-    setSaveModalCollectionId(selectedCollectionId || (collections.length > 0 ? collections[0].id : ''));
+    setSaveModalCollectionId(collectionId);
+    setSaveModalFolderId(activeSavedRequest?.folderId ?? '');
     setSaveModalSelectedRequestId(activeSavedRequestId && selectedCollectionId ? activeSavedRequestId : '');
     setShowSaveModal(true);
   }
@@ -490,7 +557,7 @@ function App() {
           ...collection,
           updatedAt: now,
           requests: collection.requests.map((request) => request.id === saveModalSelectedRequestId ? {
-            ...request, name, method, url, headers, queryParams: queryRows, body, auth, updatedAt: now,
+            ...request, name, folderId: saveModalFolderId || undefined, method, url, headers, queryParams: queryRows, body, auth, updatedAt: now,
           } : request),
         };
       }
@@ -500,7 +567,7 @@ function App() {
         ...collection,
         updatedAt: now,
         requests: [
-          { id: newId, name, method, url, headers, queryParams: queryRows, body, auth, createdAt: now, updatedAt: now },
+          { id: newId, name, folderId: saveModalFolderId || undefined, method, url, headers, queryParams: queryRows, body, auth, createdAt: now, updatedAt: now },
           ...collection.requests,
         ],
       };
@@ -705,6 +772,28 @@ function App() {
     }
   }
 
+  function renderSavedRequest(collection: Collection, saved: Collection['requests'][number]) {
+    return (
+      <div className="saved-request" key={saved.id}>
+        {renamingRequestId === saved.id ? (
+          <div className="rename-row">
+            <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') commitRename(collection.id); if (e.key === 'Escape') setRenamingRequestId(''); }} />
+            <button onClick={() => commitRename(collection.id)} title="Confirm rename">✓</button>
+            <button onClick={() => setRenamingRequestId('')} title="Cancel rename">×</button>
+          </div>
+        ) : (
+          <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id)}>
+            <strong className={methodColorClass(saved.method)}>{saved.method}</strong>
+            <span>{saved.name}</span>
+          </button>
+        )}
+        <div className="saved-request-menu">
+          <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setMenuState(menuState?.requestId === saved.id ? null : { requestId: saved.id, collectionId: collection.id, rect, name: saved.name }); }} title="More actions">⋮</button>
+        </div>
+      </div>
+    );
+  }
+
   function importCurl() {
     try {
       const parsed = parseCurl(curlInput);
@@ -771,25 +860,25 @@ function App() {
                 <button className="export-collection-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportCollection(collection); }} title="Export as Postman collection">↗</button>
               </summary>
               <div className="saved-request-list">
-                {collection.requests.map((saved) => (
-                  <div className="saved-request" key={saved.id}>
-                    {renamingRequestId === saved.id ? (
-                      <div className="rename-row">
-                        <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') commitRename(collection.id); if (e.key === 'Escape') setRenamingRequestId(''); }} />
-                        <button onClick={() => commitRename(collection.id)} title="Confirm rename">✓</button>
-                        <button onClick={() => setRenamingRequestId('')} title="Cancel rename">×</button>
+                <button className="folder-action" onClick={() => openFolderModal(collection.id)}>+ New folder</button>
+                {(collection.folders ?? []).map((folder) => {
+                  const folderRequests = collection.requests.filter((saved) => saved.folderId === folder.id);
+                  return (
+                    <details className="folder-item" key={folder.id} open>
+                      <summary>
+                        <span>{folder.name}</span>
+                        <small>{folderRequests.length}</small>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id, folder); }} title="Rename folder">✎</button>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openDeleteFolderModal(collection.id, folder); }} title="Delete folder">×</button>
+                      </summary>
+                      <div className="folder-requests">
+                        {folderRequests.map((saved) => renderSavedRequest(collection, saved))}
+                        {folderRequests.length === 0 && <p className="muted small">No requests in this folder.</p>}
                       </div>
-                    ) : (
-                      <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id)}>
-                        <strong className={methodColorClass(saved.method)}>{saved.method}</strong>
-                        <span>{saved.name}</span>
-                      </button>
-                    )}
-                    <div className="saved-request-menu">
-                      <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setMenuState(menuState?.requestId === saved.id ? null : { requestId: saved.id, collectionId: collection.id, rect, name: saved.name }); }} title="More actions">⋮</button>
-                    </div>
-                  </div>
-                ))}
+                    </details>
+                  );
+                })}
+                {collection.requests.filter((saved) => !saved.folderId).map((saved) => renderSavedRequest(collection, saved))}
                 {collection.requests.length === 0 && <p className="muted small">No saved requests.</p>}
                 <button className="delete-collection" onClick={() => openDeleteCollectionModal(collection.id)}>Delete collection</button>
               </div>
@@ -1157,6 +1246,47 @@ function App() {
         </div>
       )}
 
+      {folderModalCollectionId && (
+        <div className="modal-backdrop" onClick={() => setFolderModalCollectionId('')}>
+          <section className="modal-card compact-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="folder-modal-title">
+            <div className="import-header">
+              <div>
+                <h2 id="folder-modal-title">{editingFolderId ? 'Rename Folder' : 'New Folder'}</h2>
+                <p>Organize saved requests inside this collection.</p>
+              </div>
+              <button className="close-button" onClick={() => setFolderModalCollectionId('')} aria-label="Close folder modal">×</button>
+            </div>
+            <input className="modal-input" value={folderModalName} onChange={(event) => setFolderModalName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') saveFolder(); }} placeholder="Folder name" autoFocus />
+            <div className="modal-actions" style={{ marginTop: 18 }}>
+              <button className="ghost-action" onClick={() => setFolderModalCollectionId('')}>Cancel</button>
+              <button className="secondary-button" onClick={saveFolder} disabled={!folderModalName.trim()}>{editingFolderId ? 'Rename' : 'Create'}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {deleteTargetFolder && (
+        <div className="modal-backdrop" onClick={() => setDeleteTargetFolder(null)}>
+          <section className="modal-card compact-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-folder-title">
+            <div className="import-header">
+              <div>
+                <h2 id="delete-folder-title">Delete Folder</h2>
+                <p>Requests inside this folder will be moved to the collection root.</p>
+              </div>
+              <button className="close-button" onClick={() => setDeleteTargetFolder(null)} aria-label="Close delete folder modal">×</button>
+            </div>
+            <div className="delete-summary">
+              <strong>{deleteTargetFolder.name}</strong>
+              <span>{deleteTargetFolder.requestCount} saved requests</span>
+            </div>
+            <div className="modal-actions">
+              <button className="ghost-action" onClick={() => setDeleteTargetFolder(null)}>Cancel</button>
+              <button className="danger-action" onClick={deleteFolder}>Delete Folder</button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {showClearHistoryModal && (
         <div className="modal-backdrop" onClick={() => setShowClearHistoryModal(false)}>
           <section className="modal-card compact-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="clear-history-title">
@@ -1185,11 +1315,16 @@ function App() {
               </div>
               <button className="close-button" onClick={() => setShowSaveModal(false)} aria-label="Close save modal">×</button>
             </div>
-            <div style={{ marginBottom: 16 }}>
+            <div className="save-modal-selects">
               <Dropdown
                 value={saveModalCollectionId}
-                onChange={(id) => { setSaveModalCollectionId(id); setSaveModalSelectedRequestId(''); }}
+                onChange={(id) => { setSaveModalCollectionId(id); setSaveModalFolderId(''); setSaveModalSelectedRequestId(''); }}
                 options={[{ value: '', label: 'Select collection...' }, ...collections.map((c) => ({ value: c.id, label: c.name }))]}
+              />
+              <Dropdown
+                value={saveModalFolderId}
+                onChange={(id) => { setSaveModalFolderId(id); setSaveModalSelectedRequestId(''); }}
+                options={[{ value: '', label: 'No folder' }, ...saveModalFolders.map((folder) => ({ value: folder.id, label: folder.name }))]}
               />
             </div>
             {saveModalRequests.length > 0 && (

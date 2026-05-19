@@ -17,6 +17,7 @@ export type QueryRow = {
 export type SavedRequest = {
   id: string;
   name: string;
+  folderId?: string;
   method: HttpMethod;
   url: string;
   headers: HeaderRow[];
@@ -39,9 +40,17 @@ export type AuthState = {
   apiIn: 'header' | 'query';
 };
 
+export type CollectionFolder = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Collection = {
   id: string;
   name: string;
+  folders?: CollectionFolder[];
   requests: SavedRequest[];
   createdAt: string;
   updatedAt: string;
