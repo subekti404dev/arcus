@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface DropdownOption {
   value: string;
@@ -15,8 +16,16 @@ interface DropdownProps {
 
 export default function Dropdown({ value, onChange, options, disabled, className }: DropdownProps) {
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const selectedLabel = options.find((o) => o.value === value)?.label ?? value;
+
+  useEffect(() => {
+    if (open && triggerRef.current) {
+      setRect(triggerRef.current.getBoundingClientRect());
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -25,14 +34,20 @@ export default function Dropdown({ value, onChange, options, disabled, className
         setOpen(false);
       }
     }
+    function handleResize() { setOpen(false); }
+    window.addEventListener('resize', handleResize);
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('mousedown', handleClick);
+    };
   }, [open]);
 
   return (
     <div className={`dropdown-container ${disabled ? 'dropdown-disabled' : ''} ${className ?? ''}`} ref={containerRef}>
       <button
         type="button"
+        ref={triggerRef}
         className={`dropdown-trigger ${open ? 'dropdown-open' : ''}`}
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
@@ -40,20 +55,25 @@ export default function Dropdown({ value, onChange, options, disabled, className
         <span>{selectedLabel}</span>
         <span className="dropdown-arrow">{open ? '▴' : '▾'}</span>
       </button>
-      {open && (
-        <div className="dropdown-menu">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`dropdown-option ${option.value === value ? 'dropdown-option-selected' : ''}`}
-              onClick={() => { onChange(option.value); setOpen(false); }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open && rect
+        && createPortal(
+          <div
+            className="dropdown-menu"
+            style={{ position: 'fixed', top: rect.bottom + 4, left: rect.left, minWidth: rect.width }}
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`dropdown-option ${option.value === value ? 'dropdown-option-selected' : ''}`}
+                onClick={() => { onChange(option.value); setOpen(false); }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

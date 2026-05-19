@@ -34,8 +34,8 @@ button:active { transform: translateY(1px) scale(.99); }
 .sidebar { width: 320px; padding: 22px; border-right: 1px solid var(--border); background: rgba(2, 6, 23, .56); backdrop-filter: blur(22px); overflow: auto; }
 .brand { display: none; font-size: 24px; font-weight: 800; letter-spacing: -.04em; margin-bottom: 20px; }
 .brand span { color: #f97316; }
-.new-button, .request-bar button:not(.dropdown-trigger), .secondary-button { width: 100%; border: 0; color: white; background: #f97316; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; }
-.new-button:hover, .request-bar button:not(.dropdown-trigger):hover, .secondary-button:hover { background: #fb923c; }
+.new-button, .request-bar button:not(.dropdown-trigger):not(.dropdown-option), .secondary-button { width: 100%; border: 0; color: white; background: #f97316; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; }
+.new-button:hover, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):hover, .secondary-button:hover { background: #fb923c; }
 .request-bar .copy-curl-button { color: #dbeafe; background: #2563eb; }
 .request-bar .copy-curl-button:hover { background: #3b82f6; }
 .import-button { width: 100%; margin-top: 10px; border: 1px solid #f97316; color: #fed7aa; background: rgba(249, 115, 22, .12); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
@@ -89,8 +89,8 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .save-bar { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) 110px; gap: 12px; margin-bottom: 12px; }
 .request-bar { display: grid; grid-template-columns: minmax(110px, 130px) minmax(0, 1fr) minmax(110px, 130px) minmax(96px, 120px); gap: 12px; margin-bottom: 18px; }
 .save-bar select, .save-bar input, .request-bar select, .request-bar input, .body-actions select, .body-row input, .header-row input, textarea { border: 1px solid #334155; color: #f8fafc; background: #020617; border-radius: 10px; padding: 8px 12px; outline: none; font-size: 13px; }
-.save-bar button:not(.dropdown-trigger) { border: 0; color: white; background: #2563eb; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
-.save-bar button:not(.dropdown-trigger):hover { background: #3b82f6; }
+.save-bar button:not(.dropdown-trigger):not(.dropdown-option) { border: 0; color: white; background: #2563eb; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
+.save-bar button:not(.dropdown-trigger):not(.dropdown-option):hover { background: #3b82f6; }
 .save-bar button:disabled { opacity: .55; cursor: not-allowed; }
 .request-bar select, .save-bar select, .body-actions select { appearance: none; color: #fff7ed; background-color: #1e293b; border-color: #f97316; font-weight: 800; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, #fb923c 50%), linear-gradient(135deg, #fb923c 50%, transparent 50%); background-position: calc(100% - 14px) 50%, calc(100% - 8px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 30px; font-size: 13px; }
 .request-bar select option, .save-bar select option { color: #0f172a; background: #fff7ed; font-weight: 700; }
@@ -102,7 +102,7 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .dropdown-trigger:focus, .dropdown-trigger.dropdown-open { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,.18); outline: none; }
 .dropdown-disabled .dropdown-trigger { opacity: .55; cursor: not-allowed; }
 .dropdown-arrow { color: #64748b; font-size: 11px; line-height: 1; }
-.dropdown-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 110; border: 1px solid #334155; background: #0f172a; border-radius: 10px; padding: 4px; box-shadow: 0 12px 32px rgba(0,0,0,.6); min-width: max-content; }
+.dropdown-menu { z-index: 110; border: 1px solid #334155; background: #0f172a; border-radius: 10px; padding: 4px; box-shadow: 0 12px 32px rgba(0,0,0,.6); }
 .dropdown-option { display: block; width: 100%; text-align: left; border: 0; color: #cbd5e1; background: transparent; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 13px; font-family: inherit; white-space: nowrap; }
 .dropdown-option:hover { color: #fff; }
 .dropdown-option-selected { color: #fff; font-weight: 700; }
