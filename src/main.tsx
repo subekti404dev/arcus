@@ -86,6 +86,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [renamingRequestId, setRenamingRequestId] = useState('');
   const [renameValue, setRenameValue] = useState('');
+  const [menuOpenRequestId, setMenuOpenRequestId] = useState('');
 
   const canHaveBody = !['GET', 'DELETE'].includes(method);
 
@@ -519,10 +520,18 @@ function App() {
                         <span>{saved.name}</span>
                       </button>
                     )}
-                    <div className="saved-request-actions">
-                      <button className="mini-button" onClick={() => duplicateSavedRequest(collection.id, saved.id)} title="Duplicate request">⧉</button>
-                      <button className="mini-button" onClick={() => startRename(saved.id, saved.name)} title="Rename request">✏</button>
-                      <button className="delete-mini" onClick={() => deleteSavedRequest(collection.id, saved.id)} title="Delete request">×</button>
+                    <div className="saved-request-menu">
+                      <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); setMenuOpenRequestId(menuOpenRequestId === saved.id ? '' : saved.id); }} title="More actions">⋮</button>
+                      {menuOpenRequestId === saved.id && (
+                        <>
+                          <div className="menu-backdrop" onClick={() => setMenuOpenRequestId('')} />
+                          <div className="menu-dropdown">
+                            <button onClick={() => { duplicateSavedRequest(collection.id, saved.id); setMenuOpenRequestId(''); }}>⧉ Duplicate</button>
+                            <button onClick={() => { startRename(saved.id, saved.name); setMenuOpenRequestId(''); }}>✎ Rename</button>
+                            <button className="menu-danger" onClick={() => { deleteSavedRequest(collection.id, saved.id); setMenuOpenRequestId(''); }}>× Delete</button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -705,7 +714,7 @@ function App() {
                 </div>
                 <div className="response-body-header">
                   <div className="section-title">{responseView === 'headers' ? 'Response Headers' : 'Response Body'}</div>
-                  <button className="copy-body-button" onClick={copyResponseBody} title="Copy response body">📋 Copy</button>
+                  <button className="copy-body-button" onClick={copyResponseBody} title="Copy response body">Copy</button>
                   <div className="view-tabs" role="tablist" aria-label="Response view mode">
                     <button className={responseView === 'preview' ? 'active' : ''} onClick={() => setResponseView('preview')} role="tab" aria-selected={responseView === 'preview'}>Preview</button>
                     <button className={responseView === 'raw' ? 'active' : ''} onClick={() => setResponseView('raw')} role="tab" aria-selected={responseView === 'raw'}>Raw</button>
