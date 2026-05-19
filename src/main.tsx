@@ -483,15 +483,31 @@ function App() {
     event.target.value = '';
   }
 
-  function handleExportCollection(collection: Collection) {
+  async function handleExportCollection(collection: Collection) {
     const json = exportAsPostmanCollection(collection);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${collection.name.replace(/[^a-zA-Z0-9]/g, '_')}.postman_collection.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const defaultName = `${collection.name.replace(/[^a-zA-Z0-9]/g, '_')}.postman_collection.json`;
+
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+      const filePath = await save({
+        defaultPath: defaultName,
+        filters: [{ name: 'Postman Collection', extensions: ['json'] }],
+      });
+      if (filePath) {
+        await writeTextFile(filePath, json);
+        setToastMessage(`Exported to ${filePath}`);
+      }
+    } catch {
+      // Fallback: browser download
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = defaultName;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }
   }
 
   function importCurl() {
