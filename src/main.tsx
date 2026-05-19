@@ -710,6 +710,61 @@ function App() {
     applyBulkHeaders(text);
   }
 
+  function handleBulkCommentToggle(
+    text: string,
+    textarea: HTMLTextAreaElement,
+    setter: (text: string) => void,
+  ) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    let lineStart = start;
+    while (lineStart > 0 && text[lineStart - 1] !== '\n') lineStart--;
+    let lineEnd = end;
+    while (lineEnd < text.length && text[lineEnd] !== '\n') lineEnd++;
+
+    const selected = text.slice(lineStart, lineEnd);
+    const lines = selected.split('\n');
+
+    const allCommented = lines.every((line) => line.trimStart().startsWith('//'));
+    const toggled = lines.map((line) => {
+      if (allCommented) {
+        const idx = line.indexOf('//');
+        return idx >= 0 ? line.slice(0, idx) + line.slice(idx + 2) : line;
+      }
+      return `// ${line}`;
+    }).join('\n');
+
+    const next = text.slice(0, lineStart) + toggled + text.slice(lineEnd);
+    setter(next);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const newEnd = allCommented ? Math.max(0, lineEnd - (lines.length * 3)) : lineEnd + (lines.length * 3);
+      textarea.setSelectionRange(lineStart, newEnd);
+    });
+  }
+
+  function handleBulkHeadersKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+      e.preventDefault();
+      handleBulkCommentToggle(bulkHeadersRaw, e.currentTarget, (text) => {
+        setBulkHeadersRaw(text);
+        applyBulkHeaders(text);
+      });
+    }
+  }
+
+  function handleBulkQueryKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+      e.preventDefault();
+      handleBulkCommentToggle(bulkQueryRaw, e.currentTarget, (text) => {
+        setBulkQueryRaw(text);
+        applyBulkQuery(text);
+      });
+    }
+  }
+
   function applyBulkHeaders(text: string) {
     const parsed: HeaderRow[] = [];
     for (const line of text.split('\n')) {
@@ -1244,12 +1299,17 @@ function App() {
               </button>
             </div>
             {bulkEditQuery ? (
-              <textarea
-                className="bulk-headers-input"
-                value={bulkQueryRaw}
-                onChange={(e) => handleBulkQueryChange(e.target.value)}
-                placeholder="page: 1&#10;limit: 20"
-              />
+              <div className="bulk-headers-editor">
+                <div className="bulk-line-numbers" ref={(el) => { if (el) el.scrollTop = el.parentElement?.querySelector('textarea')?.scrollTop ?? 0; }}>{bulkQueryRaw.split('\n').map((_, i) => <span key={i}>{i + 1}</span>)}</div>
+                <textarea
+                  className="bulk-headers-input"
+                  value={bulkQueryRaw}
+                  onKeyDown={handleBulkQueryKeyDown}
+                  onScroll={(e) => { (e.currentTarget.previousElementSibling as HTMLElement).scrollTop = e.currentTarget.scrollTop; }}
+                  onChange={(e) => handleBulkQueryChange(e.target.value)}
+                  placeholder="page: 1&#10;limit: 20"
+                />
+              </div>
             ) : (
               <>
                 <div className="headers-table">
@@ -1273,12 +1333,17 @@ function App() {
               </button>
             </div>
             {bulkEditHeaders ? (
-              <textarea
-                className="bulk-headers-input"
-                value={bulkHeadersRaw}
-                onChange={(e) => handleBulkHeadersChange(e.target.value)}
-                placeholder="Content-Type: application/json&#10;Authorization: Bearer token"
-              />
+              <div className="bulk-headers-editor">
+                <div className="bulk-line-numbers" ref={(el) => { if (el) el.scrollTop = el.parentElement?.querySelector('textarea')?.scrollTop ?? 0; }}>{bulkHeadersRaw.split('\n').map((_, i) => <span key={i}>{i + 1}</span>)}</div>
+                <textarea
+                  className="bulk-headers-input"
+                  value={bulkHeadersRaw}
+                  onKeyDown={handleBulkHeadersKeyDown}
+                  onScroll={(e) => { (e.currentTarget.previousElementSibling as HTMLElement).scrollTop = e.currentTarget.scrollTop; }}
+                  onChange={(e) => handleBulkHeadersChange(e.target.value)}
+                  placeholder="Content-Type: application/json&#10;Authorization: Bearer token"
+                />
+              </div>
             ) : (
               <>
                 <div className="headers-table">
