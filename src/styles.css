@@ -94,6 +94,17 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .save-bar button:disabled { opacity: .55; cursor: not-allowed; }
 .request-bar select, .save-bar select, .body-actions select { appearance: none; color: #fff7ed; background-color: #1e293b; border-color: #f97316; font-weight: 800; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, #fb923c 50%), linear-gradient(135deg, #fb923c 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%; background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; padding-right: 36px; }
 .request-bar select option, .save-bar select option { color: #0f172a; background: #fff7ed; font-weight: 700; }
+.request-bar select.method-get { color: #86efac; }
+.request-bar select.method-post { color: #fbbf24; }
+.request-bar select.method-put { color: #93c5fd; }
+.request-bar select.method-patch { color: #5eead4; }
+.request-bar select.method-delete { color: #fca5a5; }
+.method-get { color: #86efac; }
+.method-post { color: #fbbf24; }
+.method-put { color: #93c5fd; }
+.method-patch { color: #5eead4; }
+.method-delete { color: #fca5a5; }
+.method-head { color: #94a3b8; }
 .save-bar select:invalid, .save-bar select option[value=""] { color: #fed7aa; }
 .save-bar input::placeholder, .modal-input::placeholder, .request-bar input::placeholder, .body-row input::placeholder, .header-row input::placeholder, textarea::placeholder { color: #94a3b8; opacity: 1; }
 .save-bar select:focus, .save-bar input:focus, .modal-input:focus, .request-bar select:focus, .request-bar input:focus, .body-actions select:focus, .body-row input:focus, .header-row input:focus, textarea:focus { border-color: #fb923c; box-shadow: 0 0 0 3px rgba(249, 115, 22, .18); }

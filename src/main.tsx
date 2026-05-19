@@ -30,6 +30,10 @@ type BodyRow = { id: string; key: string; value: string; enabled: boolean };
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const collectionsStorageKey = 'postman-tauri:collections';
 
+function methodColorClass(method: string) {
+  return `method-${method.toLowerCase()}`;
+}
+
 function uid() {
   return crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
 }
@@ -527,7 +531,7 @@ function App() {
                       </div>
                     ) : (
                       <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id)}>
-                        <strong>{saved.method}</strong>
+                        <strong className={methodColorClass(saved.method)}>{saved.method}</strong>
                         <span>{saved.name}</span>
                       </button>
                     )}
@@ -551,7 +555,7 @@ function App() {
           {history.length === 0 && <p className="muted">No requests yet.</p>}
           {history.map((item) => (
             <button className="history-item" key={item.id} onClick={() => { setMethod(item.method); setUrl(item.url); }}>
-              <strong>{item.method}</strong>
+              <strong className={item.method ? methodColorClass(item.method) : ''}>{item.method}</strong>
               <span>{item.url}</span>
               <small><span className={item.status ? statusBadgeClass(item.status) : 'status-err'}>{item.status ?? 'err'}</span> · {item.status ? `${item.durationMs}ms` : 'failed'} · {item.createdAt}</small>
             </button>
@@ -570,7 +574,7 @@ function App() {
         </div>
 
         <div className="request-bar">
-          <select value={method} onChange={(e) => setMethod(e.target.value as HttpMethod)}>
+          <select value={method} onChange={(e) => setMethod(e.target.value as HttpMethod)} className={methodColorClass(method)}>
             {methods.map((item) => <option key={item}>{item}</option>)}
           </select>
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter request URL" />
