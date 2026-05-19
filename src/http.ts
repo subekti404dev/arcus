@@ -16,6 +16,7 @@ export type NativeHttpResponse = {
   timings?: ResponseTimings;
   headers: Record<string, string>;
   body: string;
+  body_base64?: string | null;
 };
 
 export type FormFieldInput = {

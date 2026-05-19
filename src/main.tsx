@@ -16,6 +16,7 @@ type RequestHistory = {
   status?: number;
   durationMs?: number;
   createdAt: string;
+  createdAtMs: number;
   snapshot: RequestSnapshot;
   response?: ResponseState;
 };
@@ -35,6 +36,7 @@ type ResponseState = {
   timings: ResponseTimings;
   headers: Record<string, string>;
   body: string;
+  bodyBase64?: string | null;
 };
 
 type BodyType = 'raw' | 'form-data' | 'x-www-form-urlencoded';
@@ -89,6 +91,11 @@ function parseJson(value: string): JsonValue | null {
 function prettyJson(value: string) {
   const parsed = parseJson(value);
   return parsed === null ? value : JSON.stringify(parsed, null, 2);
+}
+
+function getContentType(headers: Record<string, string>) {
+  const entry = Object.entries(headers).find(([key]) => key.toLowerCase() === 'content-type');
+  return entry?.[1] ?? '';
 }
 
 function escapeHtml(value: string) {
@@ -196,7 +203,7 @@ function App() {
     setUrl(qs ? `${base}${qs}` : base);
   }
   const [response, setResponse] = useState<ResponseState | null>(null);
-  const [history, setHistory] = useState<RequestHistory[]>(() => loadJson<RequestHistory[]>(historyStorageKey, []));
+  const [history, setHistory] = useState<RequestHistory[]>(() => loadJson<RequestHistory[]>(historyStorageKey, []).sort((a, b) => b.createdAtMs - a.createdAtMs));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [curlInput, setCurlInput] = useState('');
@@ -423,6 +430,7 @@ function App() {
     const headersReceivedAt = performance.now();
     const text = await res.text();
     const completedAt = performance.now();
+    const headers = Object.fromEntries(res.headers.entries());
     const totalMs = Math.round(completedAt - startedAt);
     const firstByteMs = Math.round(headersReceivedAt - startedAt);
     const bodyReadMs = Math.round(completedAt - headersReceivedAt);
@@ -437,8 +445,9 @@ function App() {
         firstByteMs,
         bodyReadMs,
       },
-      headers: Object.fromEntries(res.headers.entries()),
+      headers,
       body: text,
+      bodyBase64: getContentType(headers).toLowerCase().startsWith('image/') ? btoa(text) : null,
     };
   }
 
@@ -479,14 +488,15 @@ function App() {
         timings,
         headers: result.headers,
         body: prettyJson(result.body),
+        bodyBase64: 'body_base64' in result ? result.body_base64 : (!('duration_ms' in result) ? result.bodyBase64 : null),
       };
       const snapshot = { ...currentSnapshot(), url: effectiveUrl, response: nextResponse, error: '' };
       setResponse(nextResponse);
       setResponseView('preview');
       setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, snapshot } : tab));
       setHistory((items) => [
-        { id: uid(), method, url: effectiveUrl, status: result.status, durationMs: nextResponse.durationMs, createdAt: new Date().toLocaleString(), snapshot, response: nextResponse },
-        ...items.slice(0, 19),
+        { id: uid(), method, url: effectiveUrl, status: result.status, durationMs: nextResponse.durationMs, createdAt: new Date().toLocaleString(), createdAtMs: Date.now(), snapshot, response: nextResponse },
+        ...items.sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 19),
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown request error';
@@ -494,8 +504,8 @@ function App() {
       setError(message);
       setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, snapshot } : tab));
       setHistory((items) => [
-        { id: uid(), method, url: effectiveUrl, createdAt: new Date().toLocaleString(), snapshot },
-        ...items.slice(0, 19),
+        { id: uid(), method, url: effectiveUrl, createdAt: new Date().toLocaleString(), createdAtMs: Date.now(), snapshot },
+        ...items.sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 19),
       ]);
     } finally {
       setLoading(false);
@@ -1441,6 +1451,10 @@ function App() {
                         <span className="response-header-value">{value}</span>
                       </div>
                     ))}
+                  </div>
+                ) : responseView === 'preview' && response.bodyBase64 && getContentType(response.headers).toLowerCase().startsWith('image/') ? (
+                  <div className="image-preview-wrap">
+                    <img src={`data:${getContentType(response.headers).split(';')[0]};base64,${response.bodyBase64}`} alt="Response preview" />
                   </div>
                 ) : responseView === 'preview' && responseJson !== null ? <JsonTree data={responseJson} /> : <pre>{response.body}</pre>}
               </>

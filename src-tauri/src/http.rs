@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::multipart;
 use serde::{Deserialize, Serialize};
@@ -47,6 +48,7 @@ pub struct HttpResponseOutput {
     pub timings: TimingOutput,
     pub headers: HashMap<String, String>,
     pub body: String,
+    pub body_base64: Option<String>,
 }
 
 #[tauri::command]
@@ -135,8 +137,18 @@ pub async fn send_http_request(input: HttpRequestInput) -> Result<HttpResponseOu
         })
         .collect::<HashMap<_, _>>();
     let body_read_started_at = Instant::now();
-    let body = response.text().await.map_err(|err| err.to_string())?;
+    let body_bytes = response.bytes().await.map_err(|err| err.to_string())?;
     let completed_at = Instant::now();
+    let body = String::from_utf8_lossy(&body_bytes).to_string();
+    let body_base64 = if headers
+        .get("content-type")
+        .map(|value| value.to_ascii_lowercase().starts_with("image/"))
+        .unwrap_or(false)
+    {
+        Some(general_purpose::STANDARD.encode(&body_bytes))
+    } else {
+        None
+    };
     let first_byte_ms = headers_received_at.duration_since(started_at).as_millis();
     let body_read_ms = completed_at.duration_since(body_read_started_at).as_millis();
     let total_ms = completed_at.duration_since(started_at).as_millis();
@@ -154,5 +166,6 @@ pub async fn send_http_request(input: HttpRequestInput) -> Result<HttpResponseOu
         },
         headers,
         body,
+        body_base64,
     })
 }
