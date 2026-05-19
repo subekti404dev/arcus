@@ -65,6 +65,12 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .save-modal-request-item + .save-modal-request-item { border-top: 1px solid #1e293b; }
 .save-modal-request-item:hover { background: #1e293b; }
 .save-modal-request-selected { color: #fed7aa; background: #1e293b; }
+
+/* ── Bulk Headers ── */
+.bulk-edit-toggle { border: 1px solid #334155; color: #64748b; background: transparent; border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 11px; font-family: inherit; margin-left: 10px; }
+.bulk-edit-toggle:hover { color: #cbd5e1; border-color: #64748b; }
+.bulk-headers-input { width: 100%; min-height: 120px; border: 1px solid #334155; color: #f8fafc; background: #020617; border-radius: 10px; padding: 10px 12px; outline: none; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; resize: vertical; }
+.bulk-headers-input:focus { border-color: #fb923c; box-shadow: 0 0 0 3px rgba(249,115,22,.18); }
 .collection-list { display: grid; gap: 10px; margin-top: 12px; }
 .collection-item { border: 1px solid #273449; background: #111827; border-radius: 12px; overflow: hidden; }
 .collection-item summary { display: flex; justify-content: space-between; gap: 10px; padding: 10px; cursor: pointer; color: #e5e7eb; font-weight: 800; }

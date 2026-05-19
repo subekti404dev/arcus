@@ -110,6 +110,8 @@ function App() {
   const [saveModalCollectionId, setSaveModalCollectionId] = useState('');
   const [saveModalNewName, setSaveModalNewName] = useState('');
   const [saveModalSelectedRequestId, setSaveModalSelectedRequestId] = useState('');
+  const [bulkEditHeaders, setBulkEditHeaders] = useState(false);
+  const [bulkHeadersRaw, setBulkHeadersRaw] = useState('');
 
   const canHaveBody = !['GET', 'HEAD', 'DELETE'].includes(method);
 
@@ -340,6 +342,33 @@ function App() {
   const saveModalRequests = useMemo(() => {
     return collections.find((c) => c.id === saveModalCollectionId)?.requests ?? [];
   }, [collections, saveModalCollectionId]);
+
+  function toggleBulkHeaders() {
+    if (!bulkEditHeaders) {
+      setBulkHeadersRaw(headers.map((h) => `${h.key}: ${h.value}`).join('\n'));
+      setBulkEditHeaders(true);
+    } else {
+      applyBulkHeaders(bulkHeadersRaw);
+      setBulkEditHeaders(false);
+    }
+  }
+
+  function handleBulkHeadersChange(text: string) {
+    setBulkHeadersRaw(text);
+    applyBulkHeaders(text);
+  }
+
+  function applyBulkHeaders(text: string) {
+    const parsed: HeaderRow[] = [];
+    for (const line of text.split('\n')) {
+      const idx = line.indexOf(':');
+      if (idx === -1) continue;
+      const key = line.slice(0, idx).trim();
+      const value = line.slice(idx + 1).trim();
+      if (key) parsed.push({ id: uid(), key, value, enabled: true });
+    }
+    setHeaders(parsed.length > 0 ? parsed : defaultHeaders());
+  }
 
   function openSaveModal() {
     if (!url.trim()) return;
@@ -717,18 +746,34 @@ function App() {
         <div className="panels">
           <section className="card request-card">
             <h2>Request</h2>
-            <div className="section-title">Headers</div>
-            <div className="headers-table">
-              {headers.map((row) => (
-                <div className="header-row" key={row.id}>
-                  <input type="checkbox" checked={row.enabled} onChange={(e) => updateHeader(row.id, { enabled: e.target.checked })} />
-                  <input value={row.key} onChange={(e) => updateHeader(row.id, { key: e.target.value })} placeholder="Header" />
-                  <input value={row.value} onChange={(e) => updateHeader(row.id, { value: e.target.value })} placeholder="Value" />
-                  <button className="ghost" onClick={() => setHeaders((rows) => rows.filter((item) => item.id !== row.id))}>×</button>
-                </div>
-              ))}
+            <div className="section-title">
+              Headers
+              <button className="bulk-edit-toggle" onClick={toggleBulkHeaders}>
+                {bulkEditHeaders ? 'Key-Value' : 'Bulk Edit'}
+              </button>
             </div>
-            <button className="link-button" onClick={() => setHeaders((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true }])}>+ Add header</button>
+            {bulkEditHeaders ? (
+              <textarea
+                className="bulk-headers-input"
+                value={bulkHeadersRaw}
+                onChange={(e) => handleBulkHeadersChange(e.target.value)}
+                placeholder="Content-Type: application/json&#10;Authorization: Bearer token"
+              />
+            ) : (
+              <>
+                <div className="headers-table">
+                  {headers.map((row) => (
+                    <div className="header-row" key={row.id}>
+                      <input type="checkbox" checked={row.enabled} onChange={(e) => updateHeader(row.id, { enabled: e.target.checked })} />
+                      <input value={row.key} onChange={(e) => updateHeader(row.id, { key: e.target.value })} placeholder="Header" />
+                      <input value={row.value} onChange={(e) => updateHeader(row.id, { value: e.target.value })} placeholder="Value" />
+                      <button className="ghost" onClick={() => setHeaders((rows) => rows.filter((item) => item.id !== row.id))}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <button className="link-button" onClick={() => setHeaders((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true }])}>+ Add header</button>
+              </>
+            )}
 
             <div className="auth-section">
               <div className="auth-header">
