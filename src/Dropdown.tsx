@@ -19,6 +19,7 @@ export default function Dropdown({ value, onChange, options, disabled, className
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const selectedLabel = options.find((o) => o.value === value)?.label ?? value;
 
   useEffect(() => {
@@ -30,9 +31,10 @@ export default function Dropdown({ value, onChange, options, disabled, className
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (containerRef.current && containerRef.current.contains(target)) return;
+      if (menuRef.current && menuRef.current.contains(target)) return;
+      setOpen(false);
     }
     function handleResize() { setOpen(false); }
     window.addEventListener('resize', handleResize);
@@ -59,6 +61,7 @@ export default function Dropdown({ value, onChange, options, disabled, className
         && createPortal(
           <div
             className="dropdown-menu"
+            ref={menuRef}
             style={{ position: 'fixed', top: rect.bottom + 4, left: rect.left, minWidth: rect.width }}
           >
             {options.map((option) => (
