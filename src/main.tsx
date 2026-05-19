@@ -1015,15 +1015,12 @@ function App() {
                   <div className="body-row" key={row.id}>
                     <input type="checkbox" checked={row.enabled} onChange={(e) => updateBodyRow(row.id, { enabled: e.target.checked })} disabled={!canHaveBody} />
                     {bodyType === 'form-data' && (
-                      <select
+                      <Dropdown
                         value={row.fieldType}
-                        onChange={(e) => updateBodyRow(row.id, { fieldType: e.target.value as 'text' | 'file', value: '' })}
-                        className="field-type-select"
+                        onChange={(v) => updateBodyRow(row.id, { fieldType: v as 'text' | 'file', value: '' })}
+                        options={[{ value: 'text', label: 'Text' }, { value: 'file', label: 'File' }]}
                         disabled={!canHaveBody}
-                      >
-                        <option value="text">Text</option>
-                        <option value="file">File</option>
-                      </select>
+                      />
                     )}
                     <input value={row.key} onChange={(e) => updateBodyRow(row.id, { key: e.target.value })} placeholder="Key" disabled={!canHaveBody} />
                     {row.fieldType === 'file' && bodyType === 'form-data' ? (
