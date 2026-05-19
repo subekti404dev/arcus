@@ -201,7 +201,7 @@ Tampilkan informasi timing request.
 
 ---
 
-### 10. Code Snippet Generator
+### 10. Code Snippet Generator ✅ DONE
 
 Generate contoh request dalam berbagai bahasa.
 
@@ -258,7 +258,7 @@ Urutan yang paling masuk akal:
 6. Native Multipart Form-Data Support ✅ DONE
 7. Folders di Collections ✅
 8. Multi Tabs ✅
-9. Code Snippet Generator
+9. Code Snippet Generator ✅
 10. Request Tests / Assertions
 
 ## Quick Wins

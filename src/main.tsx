@@ -89,6 +89,23 @@ function prettyJson(value: string) {
   return parsed === null ? value : JSON.stringify(parsed, null, 2);
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function highlightSnippet(code: string) {
+  const escaped = escapeHtml(code);
+  return escaped
+    .replace(/(&quot;.*?&quot;|'.*?')/g, '<span class="tok-string">$1</span>')
+    .replace(/\b(import|from|const|await|fetch|console|log|response|requests|request|print|curl)\b/g, '<span class="tok-keyword">$1</span>')
+    .replace(/\b(GET|POST|PUT|PATCH|DELETE|HEAD)\b/g, '<span class="tok-method">$1</span>')
+    .replace(/\b(\d+)\b/g, '<span class="tok-number">$1</span>')
+    .replace(/(--[\w-]+|-X|-H|-F)\b/g, '<span class="tok-flag">$1</span>');
+}
+
 function defaultHeaders(): HeaderRow[] {
   return [{ id: uid(), key: 'Accept', value: 'application/json', enabled: true }];
 }
@@ -186,6 +203,8 @@ function App() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [responseView, setResponseView] = useState<'preview' | 'raw' | 'headers'>('preview');
   const [showTimingBreakdown, setShowTimingBreakdown] = useState(false);
+  const [showSnippetModal, setShowSnippetModal] = useState(false);
+  const [snippetLanguage, setSnippetLanguage] = useState<'curl' | 'fetch' | 'axios' | 'python'>('curl');
   const [auth, setAuth] = useState<AuthState>(() => defaultAuth());
   const [collections, setCollections] = useState<Collection[]>(() => loadJson<Collection[]>(collectionsStorageKey, []));
   const [environments, setEnvironments] = useState<Environment[]>(() => loadJson<Environment[]>(environmentsStorageKey, []));
@@ -822,7 +841,7 @@ function App() {
     return new URLSearchParams(rows.map((row) => [row.key, row.value])).toString();
   }
 
-  async function copyAsCurl() {
+  function generateCurlSnippet() {
     const lines = [`curl ${shellQuote(effectiveUrl)}`];
 
     if (method !== 'GET') {
@@ -833,14 +852,55 @@ function App() {
       lines.push(`  -H ${shellQuote(`${key}: ${value}`)}`);
     });
 
-    const exportBody = getRequestBodyForExport();
-    if (exportBody) {
-      lines.push(`  --data-raw ${shellQuote(exportBody)}`);
+    if (bodyType === 'form-data' && canHaveBody) {
+      bodyRows.filter((row) => row.enabled && row.key.trim()).forEach((row) => {
+        const value = row.fieldType === 'file' ? `@${row.value}` : row.value;
+        lines.push(`  -F ${shellQuote(`${row.key.trim()}=${value}`)}`);
+      });
+    } else {
+      const exportBody = getRequestBodyForExport();
+      if (exportBody) lines.push(`  --data-raw ${shellQuote(exportBody)}`);
     }
 
-    const curl = lines.join(' \\\n');
-    await navigator.clipboard.writeText(curl);
-    setToastMessage('Copied as cURL.');
+    return lines.join(' \\\n');
+  }
+
+  function generateFetchSnippet() {
+    const headersJson = JSON.stringify(requestHeaders, null, 2);
+    const bodyText = getRequestBodyForExport();
+    const lines = [`const response = await fetch(${JSON.stringify(effectiveUrl)}, {`, `  method: ${JSON.stringify(method)},`];
+    if (Object.keys(requestHeaders).length > 0) lines.push(`  headers: ${headersJson.replace(/\n/g, '\n  ')},`);
+    if (canHaveBody && bodyText) lines.push(`  body: ${JSON.stringify(bodyText)},`);
+    lines.push('});', '', 'const data = await response.text();', 'console.log(data);');
+    return lines.join('\n');
+  }
+
+  function generateAxiosSnippet() {
+    const bodyText = getRequestBodyForExport();
+    const config = [`method: ${JSON.stringify(method.toLowerCase())}`, `url: ${JSON.stringify(effectiveUrl)}`];
+    if (Object.keys(requestHeaders).length > 0) config.push(`headers: ${JSON.stringify(requestHeaders, null, 2).replace(/\n/g, '\n  ')}`);
+    if (canHaveBody && bodyText) config.push(`data: ${JSON.stringify(bodyText)}`);
+    return `import axios from 'axios';\n\nconst response = await axios({\n  ${config.join(',\n  ')}\n});\n\nconsole.log(response.data);`;
+  }
+
+  function generatePythonSnippet() {
+    const bodyText = getRequestBodyForExport();
+    const args = [`${JSON.stringify(method)}`, `${JSON.stringify(effectiveUrl)}`];
+    if (Object.keys(requestHeaders).length > 0) args.push(`headers=${JSON.stringify(requestHeaders, null, 2)}`);
+    if (canHaveBody && bodyText) args.push(`data=${JSON.stringify(bodyText)}`);
+    return `import requests\n\nresponse = requests.request(${args.join(', ')})\n\nprint(response.text)`;
+  }
+
+  function generateSnippet() {
+    if (snippetLanguage === 'fetch') return generateFetchSnippet();
+    if (snippetLanguage === 'axios') return generateAxiosSnippet();
+    if (snippetLanguage === 'python') return generatePythonSnippet();
+    return generateCurlSnippet();
+  }
+
+  async function copySnippet() {
+    await navigator.clipboard.writeText(generateSnippet());
+    setToastMessage('Code snippet copied.');
     window.setTimeout(() => setToastMessage(''), 2200);
   }
 
@@ -1110,7 +1170,7 @@ function App() {
           <input value={url} onChange={(e) => setUrlPreservingQuery(e.target.value)} placeholder="Enter request URL" />
           <button onClick={sendRequest} disabled={loading || !url.trim()}>{loading ? 'Sending...' : 'Send'}</button>
           <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button">Save</button>
-          <button onClick={copyAsCurl} disabled={!url.trim()} className="copy-curl-button">Copy cURL</button>
+          <button onClick={() => setShowSnippetModal(true)} disabled={!url.trim()} className="snippet-button">Code</button>
         </div>
         {toastMessage && <div className="toast-message">{toastMessage}</div>}
 
@@ -1373,6 +1433,34 @@ function App() {
             <button className="menu-danger" onClick={() => { setDeleteTargetRequest({ collectionId: menuState.collectionId, requestId: menuState.requestId, name: menuState.name }); setMenuState(null); }}>× Delete</button>
           </div>
         </>
+      )}
+
+      {showSnippetModal && (
+        <div className="modal-backdrop" onClick={() => setShowSnippetModal(false)}>
+          <section className="modal-card snippet-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="snippet-title">
+            <div className="import-header">
+              <div>
+                <h2 id="snippet-title">Code Snippet</h2>
+                <p>Generate this request in another client or programming language.</p>
+              </div>
+              <button className="close-button" onClick={() => setShowSnippetModal(false)} aria-label="Close code snippet modal">×</button>
+            </div>
+            <div className="snippet-toolbar">
+              <Dropdown
+                value={snippetLanguage}
+                onChange={(value) => setSnippetLanguage(value as typeof snippetLanguage)}
+                options={[
+                  { value: 'curl', label: 'cURL' },
+                  { value: 'fetch', label: 'JavaScript fetch' },
+                  { value: 'axios', label: 'Node.js axios' },
+                  { value: 'python', label: 'Python requests' },
+                ]}
+              />
+              <button className="copy-body-button" onClick={copySnippet}>Copy</button>
+            </div>
+            <pre className="snippet-preview" dangerouslySetInnerHTML={{ __html: highlightSnippet(generateSnippet()) }} />
+          </section>
+        </div>
       )}
 
       {showCollectionModal && (

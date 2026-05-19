@@ -36,8 +36,8 @@ button:active { transform: translateY(1px) scale(.99); }
 .brand span { color: #f97316; }
 .new-button, .request-bar button:not(.dropdown-trigger):not(.dropdown-option), .secondary-button { width: 100%; border: 1px solid transparent; color: white; background: #f97316; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; line-height: 1.4; }
 .new-button:hover, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):hover, .secondary-button:hover { background: #fb923c; }
-.request-bar .copy-curl-button { color: #cbd5e1; background: #1e293b; border: 1px solid #334155 !important; line-height: 1.4; }
-.request-bar .copy-curl-button:hover { background: #334155; }
+.request-bar .snippet-button { color: #cbd5e1; background: #1e293b; border: 1px solid #334155 !important; line-height: 1.4; }
+.request-bar .snippet-button:hover { background: #334155; }
 .import-button { width: 100%; margin-top: 10px; border: 1px solid #f97316; color: #fed7aa; background: rgba(249, 115, 22, .12); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
 .import-button:hover { background: rgba(249, 115, 22, .2); }
 .request-bar button:disabled, .request-bar button.dropdown-trigger:disabled, .secondary-button:disabled { opacity: .55; cursor: not-allowed; }
@@ -130,7 +130,7 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .request-tab-add { border: 1px solid #334155; color: #cbd5e1; background: #1e293b; border-radius: 10px; width: 32px; height: 32px; cursor: pointer; font-size: 18px; flex: 0 0 auto; }
 .request-tab-add:hover { border-color: #f97316; color: #fed7aa; }
 .save-bar { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
-.request-bar { display: grid; grid-template-columns: minmax(110px, 130px) minmax(0, 1fr) minmax(96px, 110px) minmax(86px, 100px) minmax(86px, 100px); gap: 12px; margin-bottom: 18px; }
+.request-bar { display: grid; grid-template-columns: minmax(110px, 130px) minmax(0, 1fr) minmax(96px, 110px) minmax(86px, 100px) minmax(76px, 90px); gap: 12px; margin-bottom: 18px; }
 .save-bar select, .save-bar input, .request-bar select, .request-bar input, .body-actions select, .body-row input, .header-row input, textarea { border: 1px solid #334155; color: #f8fafc; background: #020617; border-radius: 10px; padding: 8px 12px; outline: none; font-size: 13px; }
 .save-bar button:not(.dropdown-trigger):not(.dropdown-option) { border: 0; color: white; background: #2563eb; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
 .save-bar button:not(.dropdown-trigger):not(.dropdown-option):hover { background: #3b82f6; }
@@ -273,6 +273,14 @@ pre { margin: 0; background: #020617; border: 1px solid #1e293b; padding: 16px; 
 .json-null { color: #f87171; }
 .json-bracket { color: #e5e7eb; }
 .json-preview { color: #64748b; font-style: italic; }
+.snippet-modal { max-width: 760px; }
+.snippet-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 10px; align-items: center; margin-bottom: 12px; }
+.snippet-preview { max-height: 52vh; white-space: pre; }
+.tok-string { color: #86efac; }
+.tok-keyword { color: #93c5fd; font-weight: 700; }
+.tok-method { color: #fbbf24; font-weight: 800; }
+.tok-number { color: #c084fc; }
+.tok-flag { color: #fb923c; font-weight: 700; }
 
 @media (max-width: 1100px) {
   .panels { grid-template-columns: 1fr; }
@@ -308,6 +316,7 @@ pre { margin: 0; background: #020617; border: 1px solid #1e293b; padding: 16px; 
   .auth-apikey-location { flex-direction: column; align-items: flex-start; }
   .body-actions { flex-direction: column; align-items: stretch; }
   .body-actions select, .body-actions .dropdown-container, .format-button { width: 100%; }
+  .snippet-toolbar { grid-template-columns: 1fr; }
   .save-modal-selects { grid-template-columns: 1fr; }
   textarea { min-height: 170px; }
   .curl-input { min-height: 220px; }
