@@ -27,7 +27,7 @@ type ResponseState = {
 };
 
 type BodyType = 'raw' | 'form-data' | 'x-www-form-urlencoded';
-type BodyRow = { id: string; key: string; value: string; enabled: boolean };
+type BodyRow = { id: string; key: string; value: string; enabled: boolean; fieldType: 'text' | 'file' };
 
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const collectionsStorageKey = 'arcus:collections';
@@ -60,7 +60,7 @@ function defaultHeaders(): HeaderRow[] {
 }
 
 function defaultBodyRows(): BodyRow[] {
-  return [{ id: uid(), key: '', value: '', enabled: true }];
+  return [{ id: uid(), key: '', value: '', enabled: true, fieldType: 'text' }];
 }
 
 function defaultAuth(): AuthState {
@@ -271,10 +271,25 @@ function App() {
 
   async function sendWithFetch() {
     const startedAt = performance.now();
+    let fetchBody: BodyInit | undefined;
+    if (canHaveBody && bodyType === 'form-data') {
+      const fd = new FormData();
+      bodyRows.filter(r => r.enabled && r.key.trim()).forEach(r => {
+        if (r.fieldType === 'file' && r.value) {
+          // For browser fetch, we can't read local file paths — skip file fields
+          fd.append(r.key.trim(), new Blob([]), r.value.split('/').pop() || 'file');
+        } else {
+          fd.append(r.key.trim(), r.value);
+        }
+      });
+      if (Array.from(fd.entries()).length > 0) fetchBody = fd;
+    } else if (canHaveBody && (bodyType !== 'raw' || body.trim())) {
+      fetchBody = encodedBody;
+    }
     const res = await fetch(effectiveUrl, {
       method,
       headers: requestHeaders,
-      body: canHaveBody && (bodyType !== 'raw' || body.trim()) ? encodedBody : undefined,
+      body: fetchBody,
     });
     const text = await res.text();
     return {
@@ -293,7 +308,12 @@ function App() {
 
     try {
       const result = window.__TAURI_INTERNALS__
-        ? await sendNativeHttpRequest({ method, url: effectiveUrl, headers: Object.entries(requestHeaders).map(([key, value]) => ({ id: uid(), key, value, enabled: true })), body: canHaveBody && bodyType !== 'form-data' ? (bodyType === 'raw' ? resolvedBody : String(encodedBody)) : body })
+        ? await sendNativeHttpRequest({
+            method, url: effectiveUrl,
+            headers: Object.entries(requestHeaders).map(([key, value]) => ({ id: uid(), key, value, enabled: true })),
+            body: bodyType !== 'form-data' ? (bodyType === 'raw' ? resolvedBody : String(encodedBody)) : undefined,
+            formFields: bodyType === 'form-data' ? bodyRows.filter(r => r.enabled && r.key.trim()).map(r => ({ key: r.key.trim(), value: r.value, fieldType: r.fieldType })) : undefined,
+          })
         : await sendWithFetch();
 
       setResponse({
@@ -994,12 +1014,38 @@ function App() {
                 {bodyRows.map((row) => (
                   <div className="body-row" key={row.id}>
                     <input type="checkbox" checked={row.enabled} onChange={(e) => updateBodyRow(row.id, { enabled: e.target.checked })} disabled={!canHaveBody} />
+                    {bodyType === 'form-data' && (
+                      <select
+                        value={row.fieldType}
+                        onChange={(e) => updateBodyRow(row.id, { fieldType: e.target.value as 'text' | 'file', value: '' })}
+                        className="field-type-select"
+                        disabled={!canHaveBody}
+                      >
+                        <option value="text">Text</option>
+                        <option value="file">File</option>
+                      </select>
+                    )}
                     <input value={row.key} onChange={(e) => updateBodyRow(row.id, { key: e.target.value })} placeholder="Key" disabled={!canHaveBody} />
-                    <input value={row.value} onChange={(e) => updateBodyRow(row.id, { value: e.target.value })} placeholder="Value" disabled={!canHaveBody} />
+                    {row.fieldType === 'file' && bodyType === 'form-data' ? (
+                      <div className="file-picker-row">
+                        <input value={row.value} onChange={(e) => updateBodyRow(row.id, { value: e.target.value })} placeholder="File path..." disabled={!canHaveBody} />
+                        <button className="file-pick-btn" onClick={async () => {
+                          try {
+                            const { open } = await import('@tauri-apps/plugin-dialog');
+                            const selected = await open({ multiple: false });
+                            if (selected) updateBodyRow(row.id, { value: selected as string });
+                          } catch {
+                            // Fallback: manual path input
+                          }
+                        }} disabled={!canHaveBody} title="Browse file">📁</button>
+                      </div>
+                    ) : (
+                      <input value={row.value} onChange={(e) => updateBodyRow(row.id, { value: e.target.value })} placeholder={bodyType === 'form-data' ? 'Value' : 'Value'} disabled={!canHaveBody} />
+                    )}
                     <button className="ghost" onClick={() => setBodyRows((rows) => rows.filter((item) => item.id !== row.id))} disabled={!canHaveBody}>×</button>
                   </div>
                 ))}
-                <button className="link-button" onClick={() => setBodyRows((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true }])} disabled={!canHaveBody}>+ Add field</button>
+                <button className="link-button" onClick={() => setBodyRows((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true, fieldType: 'text' }])} disabled={!canHaveBody}>+ Add field</button>
               </div>
             )}
           </section>

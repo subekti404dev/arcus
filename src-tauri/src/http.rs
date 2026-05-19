@@ -1,7 +1,10 @@
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::multipart;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 use std::time::Instant;
+use tokio::fs;
 
 #[derive(Debug, Deserialize)]
 pub struct HeaderInput {
@@ -10,11 +13,20 @@ pub struct HeaderInput {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct FormField {
+    pub key: String,
+    pub value: String,
+    #[serde(rename = "fieldType")]
+    pub field_type: String, // "text" or "file"
+}
+
+#[derive(Debug, Deserialize)]
 pub struct HttpRequestInput {
     pub method: String,
     pub url: String,
     pub headers: Vec<HeaderInput>,
     pub body: Option<String>,
+    pub form_fields: Option<Vec<FormField>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -64,7 +76,35 @@ pub async fn send_http_request(input: HttpRequestInput) -> Result<HttpResponseOu
     let started_at = Instant::now();
     let mut request = client.request(method, input.url).headers(header_map);
 
-    if let Some(body) = input.body {
+    if let Some(ref fields) = input.form_fields {
+        if !fields.is_empty() {
+            let mut form = multipart::Form::new();
+            for field in fields {
+                if !field.key.trim().is_empty() {
+                    if field.field_type == "file" && !field.value.is_empty() {
+                        let path = Path::new(&field.value);
+                        if path.is_file() {
+                            let file_bytes = fs::read(path).await.map_err(|err| format!("Cannot read `{}`: {err}", field.value))?;
+                            let file_name = path
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("file")
+                                .to_string();
+                            let mime = mime_guess::from_path(path).first_or_octet_stream();
+                            let part = multipart::Part::bytes(file_bytes)
+                                .file_name(file_name)
+                                .mime_str(mime.as_ref())
+                                .map_err(|err| format!("Invalid MIME for `{}`: {err}", field.value))?;
+                            form = form.part(field.key.trim().to_string(), part);
+                        }
+                    } else {
+                        form = form.text(field.key.trim().to_string(), field.value.clone());
+                    }
+                }
+            }
+            request = request.multipart(form);
+        }
+    } else if let Some(body) = input.body {
         if !body.is_empty() {
             request = request.body(body);
         }

@@ -9,11 +9,18 @@ export type NativeHttpResponse = {
   body: string;
 };
 
+export type FormFieldInput = {
+  key: string;
+  value: string;
+  fieldType: 'text' | 'file';
+};
+
 export async function sendNativeHttpRequest(input: {
   method: HttpMethod;
   url: string;
   headers: HeaderRow[];
   body?: string;
+  formFields?: FormFieldInput[];
 }) {
   return invoke<NativeHttpResponse>('send_http_request', {
     input: {
@@ -23,6 +30,7 @@ export async function sendNativeHttpRequest(input: {
         .filter((row) => row.enabled && row.key.trim())
         .map((row) => ({ key: row.key.trim(), value: row.value })),
       body: input.body,
+      formFields: input.formFields,
     },
   });
 }
