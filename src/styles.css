@@ -70,8 +70,8 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .rename-row input { border: 1px solid #f97316; color: #f8fafc; background: #020617; border-radius: 8px; padding: 6px 10px; outline: none; font-size: 13px; }
 .rename-row button { border: 1px solid #334155; color: #cbd5e1; background: #1e293b; border-radius: 8px; cursor: pointer; font-size: 14px; padding: 0; display: grid; place-items: center; }
 .rename-row button:hover { border-color: #f97316; color: #fed7aa; }
-.history-header { display: flex; align-items: center; justify-content: space-between; }
-.history-header h3 { margin-top: 28px; margin-bottom: 0; }
+.history-header { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; }
+.history-header h3 { margin: 0; }
 .clear-history { border: 1px solid #7f1d1d; color: #fca5a5; background: rgba(127, 29, 29, .22); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
 .clear-history:hover { background: rgba(127, 29, 29, .4); }
 .copy-body-button { border: 1px solid #334155; color: #cbd5e1; background: #1e293b; border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: 700; white-space: nowrap; }
