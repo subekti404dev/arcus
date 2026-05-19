@@ -697,7 +697,7 @@ function App() {
 
   function toggleBulkHeaders() {
     if (!bulkEditHeaders) {
-      setBulkHeadersRaw(headers.map((h) => `${h.key}: ${h.value}`).join('\n'));
+      setBulkHeadersRaw(headers.map((h) => (h.enabled ? '' : '// ') + `${h.key}: ${h.value}`).join('\n'));
       setBulkEditHeaders(true);
     } else {
       applyBulkHeaders(bulkHeadersRaw);
@@ -713,11 +713,13 @@ function App() {
   function applyBulkHeaders(text: string) {
     const parsed: HeaderRow[] = [];
     for (const line of text.split('\n')) {
-      const idx = line.indexOf(':');
+      const hasPrefix = line.trimStart().startsWith('//');
+      const content = hasPrefix ? line.trimStart().slice(2) : line;
+      const idx = content.indexOf(':');
       if (idx === -1) continue;
-      const key = line.slice(0, idx).trim();
-      const value = line.slice(idx + 1).trim();
-      if (key) parsed.push({ id: uid(), key, value, enabled: true });
+      const key = content.slice(0, idx).trim();
+      const value = content.slice(idx + 1).trim();
+      if (key) parsed.push({ id: uid(), key, value, enabled: !hasPrefix });
     }
     setHeaders(parsed.length > 0 ? parsed : defaultHeaders());
   }
@@ -735,7 +737,7 @@ function App() {
 
   function toggleBulkQuery() {
     if (!bulkEditQuery) {
-      setBulkQueryRaw(queryRows.map((r) => `${r.key}: ${r.value}`).join('\n'));
+      setBulkQueryRaw(queryRows.map((r) => (r.enabled ? '' : '// ') + `${r.key}: ${r.value}`).join('\n'));
       setBulkEditQuery(true);
     } else {
       applyBulkQuery(bulkQueryRaw);
@@ -751,11 +753,13 @@ function App() {
   function applyBulkQuery(text: string) {
     const rows: QueryRow[] = [];
     for (const line of text.split('\n')) {
-      const idx = line.indexOf(':');
+      const hasPrefix = line.trimStart().startsWith('//');
+      const content = hasPrefix ? line.trimStart().slice(2) : line;
+      const idx = content.indexOf(':');
       if (idx === -1) continue;
-      const key = line.slice(0, idx).trim();
-      const value = line.slice(idx + 1).trim();
-      if (key) rows.push({ id: uid(), key, value, enabled: true });
+      const key = content.slice(0, idx).trim();
+      const value = content.slice(idx + 1).trim();
+      if (key) rows.push({ id: uid(), key, value, enabled: !hasPrefix });
     }
     setUrlFromQueryRows(rows.length > 0 ? rows : [{ id: uid(), key: '', value: '', enabled: true }]);
   }
