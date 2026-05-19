@@ -217,7 +217,7 @@ function App() {
   const [auth, setAuth] = useState<AuthState>(() => defaultAuth());
   const [collections, setCollections] = useState<Collection[]>(() => loadJson<Collection[]>(collectionsStorageKey, []));
   const [environments, setEnvironments] = useState<Environment[]>(() => loadJson<Environment[]>(environmentsStorageKey, []));
-  const [activeEnvironmentId, setActiveEnvironmentId] = useState<string>('');
+  const [activeEnvironmentId, setActiveEnvironmentId] = useState<string>(() => localStorage.getItem(activeEnvStorageKey) ?? '');
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [editingEnvId, setEditingEnvId] = useState<string>('');
   const [envName, setEnvName] = useState('');
@@ -328,11 +328,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem(activeEnvStorageKey, activeEnvironmentId);
   }, [activeEnvironmentId]);
-
-  useEffect(() => {
-    const savedId = localStorage.getItem(activeEnvStorageKey);
-    if (savedId) setActiveEnvironmentId(savedId);
-  }, []);
 
   const activeEnvironment = useMemo(() => environments.find((e) => e.id === activeEnvironmentId), [environments, activeEnvironmentId]);
 
