@@ -83,8 +83,24 @@ function App() {
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [deleteTargetCollectionId, setDeleteTargetCollectionId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [renamingRequestId, setRenamingRequestId] = useState('');
+  const [renameValue, setRenameValue] = useState('');
 
   const canHaveBody = !['GET', 'DELETE'].includes(method);
+
+  function statusBadgeClass(status: number) {
+    if (status < 300) return 'status-2xx';
+    if (status < 400) return 'status-3xx';
+    if (status < 500) return 'status-4xx';
+    return 'status-5xx';
+  }
+
+  const filteredCollections = useMemo(() => {
+    if (!searchQuery.trim()) return collections;
+    const q = searchQuery.toLowerCase();
+    return collections.filter((c) => c.name.toLowerCase().includes(q) || c.requests.some((r) => r.name.toLowerCase().includes(q)));
+  }, [collections, searchQuery]);
   const responseJson = useMemo(() => response ? parseJson(response.body) : null, [response]);
   const activeSavedRequestExists = useMemo(() => {
     if (!selectedCollectionId || !activeSavedRequestId) return false;
@@ -311,6 +327,39 @@ function App() {
     }
   }
 
+  function duplicateSavedRequest(collectionId: string, requestId: string) {
+    setCollections((items) => items.map((collection) => {
+      if (collection.id !== collectionId) return collection;
+      const original = collection.requests.find((request) => request.id === requestId);
+      if (!original) return collection;
+      return { ...collection, updatedAt: new Date().toISOString(), requests: [{ ...original, id: uid(), name: `${original.name} (copy)`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...collection.requests] };
+    }));
+  }
+
+  function startRename(requestId: string, currentName: string) {
+    setRenamingRequestId(requestId);
+    setRenameValue(currentName);
+  }
+
+  function commitRename(collectionId: string) {
+    if (!renameValue.trim()) {
+      setRenamingRequestId('');
+      return;
+    }
+    setCollections((items) => items.map((collection) => {
+      if (collection.id !== collectionId) return collection;
+      return { ...collection, updatedAt: new Date().toISOString(), requests: collection.requests.map((request) => request.id === renamingRequestId ? { ...request, name: renameValue.trim(), updatedAt: new Date().toISOString() } : request) };
+    }));
+    setRenamingRequestId('');
+  }
+
+  async function copyResponseBody() {
+    if (!response) return;
+    await navigator.clipboard.writeText(response.body);
+    setToastMessage('Response body copied.');
+    window.setTimeout(() => setToastMessage(''), 2200);
+  }
+
   function shellQuote(value: string) {
     return `'${value.replace(/'/g, `'\\''`)}'`;
   }
@@ -443,9 +492,13 @@ function App() {
           <h3>Collections</h3>
           <button onClick={() => setShowCollectionModal(true)} title="New collection">+</button>
         </div>
+        {collections.length > 0 && (
+          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search collections..." className="search-input" autoComplete="off" />
+        )}
         {collections.length === 0 && <p className="muted">No collections yet.</p>}
+        {collections.length > 0 && filteredCollections.length === 0 && <p className="muted small">No matching results.</p>}
         <div className="collection-list">
-          {collections.map((collection) => (
+          {filteredCollections.map((collection) => (
             <details className="collection-item" key={collection.id} open={selectedCollectionId === collection.id} onToggle={(event) => { if (event.currentTarget.open) setSelectedCollectionId(collection.id); }}>
               <summary>
                 <span>{collection.name}</span>
@@ -454,11 +507,23 @@ function App() {
               <div className="saved-request-list">
                 {collection.requests.map((saved) => (
                   <div className="saved-request" key={saved.id}>
-                    <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id)}>
-                      <strong>{saved.method}</strong>
-                      <span>{saved.name}</span>
-                    </button>
-                    <button className="delete-mini" onClick={() => deleteSavedRequest(collection.id, saved.id)} title="Delete request">×</button>
+                    {renamingRequestId === saved.id ? (
+                      <div className="rename-row">
+                        <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') commitRename(collection.id); if (e.key === 'Escape') setRenamingRequestId(''); }} />
+                        <button onClick={() => commitRename(collection.id)} title="Confirm rename">✓</button>
+                        <button onClick={() => setRenamingRequestId('')} title="Cancel rename">×</button>
+                      </div>
+                    ) : (
+                      <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id)}>
+                        <strong>{saved.method}</strong>
+                        <span>{saved.name}</span>
+                      </button>
+                    )}
+                    <div className="saved-request-actions">
+                      <button className="mini-button" onClick={() => duplicateSavedRequest(collection.id, saved.id)} title="Duplicate request">⧉</button>
+                      <button className="mini-button" onClick={() => startRename(saved.id, saved.name)} title="Rename request">✏</button>
+                      <button className="delete-mini" onClick={() => deleteSavedRequest(collection.id, saved.id)} title="Delete request">×</button>
+                    </div>
                   </div>
                 ))}
                 {collection.requests.length === 0 && <p className="muted small">No saved requests.</p>}
@@ -468,14 +533,17 @@ function App() {
           ))}
         </div>
 
-        <h3>History</h3>
+        <div className="history-header">
+          <h3>History</h3>
+          {history.length > 0 && <button className="clear-history" onClick={() => { if (confirm('Clear all request history?')) setHistory([]); }} title="Clear history">Clear</button>}
+        </div>
         <div className="history-list">
           {history.length === 0 && <p className="muted">No requests yet.</p>}
           {history.map((item) => (
             <button className="history-item" key={item.id} onClick={() => { setMethod(item.method); setUrl(item.url); }}>
               <strong>{item.method}</strong>
               <span>{item.url}</span>
-              <small>{item.status ? `${item.status} · ${item.durationMs}ms` : 'failed'} · {item.createdAt}</small>
+              <small><span className={item.status ? statusBadgeClass(item.status) : 'status-err'}>{item.status ?? 'err'}</span> · {item.status ? `${item.durationMs}ms` : 'failed'} · {item.createdAt}</small>
             </button>
           ))}
         </div>
@@ -631,12 +699,13 @@ function App() {
             {response && (
               <>
                 <div className="response-meta">
-                  <span className={response.status < 400 ? 'ok' : 'bad'}>{response.status} {response.statusText}</span>
+                  <span className={statusBadgeClass(response.status)}>{response.status} {response.statusText}</span>
                   <span>{response.durationMs}ms</span>
                   <span>{Object.keys(response.headers).length} headers</span>
                 </div>
                 <div className="response-body-header">
                   <div className="section-title">{responseView === 'headers' ? 'Response Headers' : 'Response Body'}</div>
+                  <button className="copy-body-button" onClick={copyResponseBody} title="Copy response body">📋 Copy</button>
                   <div className="view-tabs" role="tablist" aria-label="Response view mode">
                     <button className={responseView === 'preview' ? 'active' : ''} onClick={() => setResponseView('preview')} role="tab" aria-selected={responseView === 'preview'}>Preview</button>
                     <button className={responseView === 'raw' ? 'active' : ''} onClick={() => setResponseView('raw')} role="tab" aria-selected={responseView === 'raw'}>Raw</button>
