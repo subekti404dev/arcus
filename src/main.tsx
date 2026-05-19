@@ -91,7 +91,7 @@ function App() {
   const [editingEnvId, setEditingEnvId] = useState<string>('');
   const [envName, setEnvName] = useState('');
   const [envVars, setEnvVars] = useState<{ key: string; value: string; enabled: boolean }[]>([{ key: '', value: '', enabled: true }]);
-  const [selectedCollectionId, setSelectedCollectionId] = useState('');
+  const [selectedCollectionId, setSelectedCollectionId] = useState(''); // sidebar selection only
   const [requestName, setRequestName] = useState('');
   const [activeSavedRequestId, setActiveSavedRequestId] = useState('');
   const [showCollectionModal, setShowCollectionModal] = useState(false);
@@ -104,6 +104,12 @@ function App() {
   const [deleteTargetRequest, setDeleteTargetRequest] = useState<{ collectionId: string; requestId: string; name: string } | null>(null);
   const [showClearHistoryModal, setShowClearHistoryModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Save modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveModalCollectionId, setSaveModalCollectionId] = useState('');
+  const [saveModalNewName, setSaveModalNewName] = useState('');
+  const [saveModalSelectedRequestId, setSaveModalSelectedRequestId] = useState('');
 
   const canHaveBody = !['GET', 'HEAD', 'DELETE'].includes(method);
 
@@ -130,10 +136,6 @@ function App() {
     }, []);
   }, [collections, searchQuery]);
   const responseJson = useMemo(() => response ? parseJson(response.body) : null, [response]);
-  const activeSavedRequestExists = useMemo(() => {
-    if (!selectedCollectionId || !activeSavedRequestId) return false;
-    return collections.some((collection) => collection.id === selectedCollectionId && collection.requests.some((request) => request.id === activeSavedRequestId));
-  }, [activeSavedRequestId, collections, selectedCollectionId]);
 
   useEffect(() => {
     saveJson(collectionsStorageKey, collections);
@@ -335,58 +337,49 @@ function App() {
     setDeleteTargetCollectionId(collectionId);
   }
 
-  function saveCurrentRequest() {
-    if (!selectedCollectionId) {
-      alert('Create or select a collection first.');
-      return;
-    }
+  const saveModalRequests = useMemo(() => {
+    return collections.find((c) => c.id === saveModalCollectionId)?.requests ?? [];
+  }, [collections, saveModalCollectionId]);
 
+  function openSaveModal() {
+    if (!url.trim()) return;
+    setSaveModalNewName(requestName || `${method} ${url}`);
+    setSaveModalCollectionId(selectedCollectionId || (collections.length > 0 ? collections[0].id : ''));
+    setSaveModalSelectedRequestId(activeSavedRequestId && selectedCollectionId ? activeSavedRequestId : '');
+    setShowSaveModal(true);
+  }
+
+  function doSaveRequest() {
+    if (!saveModalCollectionId || !url.trim()) return;
     const now = new Date().toISOString();
-    const name = requestName.trim() || `${method} ${url || 'Untitled request'}`;
-    const shouldUpdate = activeSavedRequestExists;
-    const newRequestId = shouldUpdate ? activeSavedRequestId : uid();
+    const name = saveModalNewName.trim() || `${method} ${url}`;
 
     setCollections((items) => items.map((collection) => {
-      if (collection.id !== selectedCollectionId) return collection;
+      if (collection.id !== saveModalCollectionId) return collection;
 
-      if (shouldUpdate) {
+      if (saveModalSelectedRequestId) {
         return {
           ...collection,
           updatedAt: now,
-          requests: collection.requests.map((request) => request.id === activeSavedRequestId ? {
-            ...request,
-            name,
-            method,
-            url,
-            headers,
-            body,
-            auth,
-            updatedAt: now,
+          requests: collection.requests.map((request) => request.id === saveModalSelectedRequestId ? {
+            ...request, name, method, url, headers, body, auth, updatedAt: now,
           } : request),
         };
       }
 
+      const newId = uid();
       return {
         ...collection,
         updatedAt: now,
         requests: [
-          {
-            id: newRequestId,
-            name,
-            method,
-            url,
-            headers,
-            body,
-            auth,
-            createdAt: now,
-            updatedAt: now,
-          },
+          { id: newId, name, method, url, headers, body, auth, createdAt: now, updatedAt: now },
           ...collection.requests,
         ],
       };
     }));
-    setActiveSavedRequestId(newRequestId);
+
     setRequestName(name);
+    setShowSaveModal(false);
   }
 
   function loadSavedRequest(collectionId: string, requestId: string) {
@@ -709,13 +702,7 @@ function App() {
 
       <section className="workspace">
         <div className="save-bar">
-          <Dropdown
-            value={selectedCollectionId}
-            onChange={setSelectedCollectionId}
-            options={[{ value: '', label: 'Select collection' }, ...collections.map((c) => ({ value: c.id, label: c.name }))]}
-          />
-          <input value={requestName} onChange={(event) => setRequestName(event.target.value)} placeholder="Request name" />
-          <button onClick={saveCurrentRequest} disabled={!selectedCollectionId || !url.trim()}>{activeSavedRequestExists ? 'Update' : 'Save'}</button>
+          <input value={requestName} onChange={(event) => setRequestName(event.target.value)} placeholder="Request name (optional)" />
         </div>
 
         <div className="request-bar">
@@ -725,7 +712,7 @@ function App() {
             options={methods.map((m) => ({ value: m, label: m }))}
           />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter request URL" />
-          <button onClick={copyAsCurl} disabled={!url.trim()} className="copy-curl-button">Copy cURL</button>
+          <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button">Save</button>
           <button onClick={sendRequest} disabled={loading || !url.trim()}>{loading ? 'Sending...' : 'Send'}</button>
         </div>
         {toastMessage && <div className="toast-message">{toastMessage}</div>}
@@ -985,6 +972,55 @@ function App() {
             <div className="modal-actions">
               <button className="ghost-action" onClick={() => setShowClearHistoryModal(false)}>Cancel</button>
               <button className="danger-action" onClick={() => { setHistory([]); setShowClearHistoryModal(false); }}>Clear All</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showSaveModal && (
+        <div className="modal-backdrop" onClick={() => setShowSaveModal(false)}>
+          <section className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="save-modal-title">
+            <div className="import-header">
+              <div>
+                <h2 id="save-modal-title">Save Request</h2>
+                <p>{saveModalSelectedRequestId ? 'Update existing request or type a new name to save as new.' : 'Select a collection and name your request.'}</p>
+              </div>
+              <button className="close-button" onClick={() => setShowSaveModal(false)} aria-label="Close save modal">×</button>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Dropdown
+                value={saveModalCollectionId}
+                onChange={(id) => { setSaveModalCollectionId(id); setSaveModalSelectedRequestId(''); }}
+                options={[{ value: '', label: 'Select collection...' }, ...collections.map((c) => ({ value: c.id, label: c.name }))]}
+              />
+            </div>
+            {saveModalRequests.length > 0 && (
+              <div className="save-modal-requests">
+                {saveModalRequests.map((req) => (
+                  <button
+                    key={req.id}
+                    className={`save-modal-request-item ${req.id === saveModalSelectedRequestId ? 'save-modal-request-selected' : ''}`}
+                    onClick={() => { setSaveModalSelectedRequestId(req.id); setSaveModalNewName(req.name); }}
+                  >
+                    <strong className={methodColorClass(req.method)}>{req.method}</strong>
+                    <span>{req.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <input
+              className="modal-input"
+              value={saveModalNewName}
+              onChange={(e) => { setSaveModalNewName(e.target.value); setSaveModalSelectedRequestId(''); }}
+              placeholder="Request name"
+              onKeyDown={(e) => { if (e.key === 'Enter') doSaveRequest(); }}
+              style={{ marginTop: 12 }}
+            />
+            <div className="modal-actions" style={{ marginTop: 18 }}>
+              <button className="ghost-action" onClick={() => setShowSaveModal(false)}>Cancel</button>
+              <button className="secondary-button" onClick={doSaveRequest} disabled={!saveModalCollectionId || !saveModalNewName.trim()}>
+                {saveModalSelectedRequestId ? 'Update' : 'Save as New'}
+              </button>
             </div>
           </section>
         </div>
