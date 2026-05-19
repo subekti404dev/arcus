@@ -31,10 +31,20 @@ pub struct HttpRequestInput {
 }
 
 #[derive(Debug, Serialize)]
+pub struct TimingOutput {
+    pub total_ms: u128,
+    pub upload_ms: u128,
+    pub download_ms: u128,
+    pub first_byte_ms: u128,
+    pub body_read_ms: u128,
+}
+
+#[derive(Debug, Serialize)]
 pub struct HttpResponseOutput {
     pub status: u16,
     pub status_text: String,
     pub duration_ms: u128,
+    pub timings: TimingOutput,
     pub headers: HashMap<String, String>,
     pub body: String,
 }
@@ -112,6 +122,7 @@ pub async fn send_http_request(input: HttpRequestInput) -> Result<HttpResponseOu
     }
 
     let response = request.send().await.map_err(|err| err.to_string())?;
+    let headers_received_at = Instant::now();
     let status = response.status();
     let headers = response
         .headers()
@@ -123,12 +134,24 @@ pub async fn send_http_request(input: HttpRequestInput) -> Result<HttpResponseOu
             )
         })
         .collect::<HashMap<_, _>>();
+    let body_read_started_at = Instant::now();
     let body = response.text().await.map_err(|err| err.to_string())?;
+    let completed_at = Instant::now();
+    let first_byte_ms = headers_received_at.duration_since(started_at).as_millis();
+    let body_read_ms = completed_at.duration_since(body_read_started_at).as_millis();
+    let total_ms = completed_at.duration_since(started_at).as_millis();
 
     Ok(HttpResponseOutput {
         status: status.as_u16(),
         status_text: status.canonical_reason().unwrap_or("").to_string(),
-        duration_ms: started_at.elapsed().as_millis(),
+        duration_ms: total_ms,
+        timings: TimingOutput {
+            total_ms,
+            upload_ms: first_byte_ms,
+            download_ms: body_read_ms,
+            first_byte_ms,
+            body_read_ms,
+        },
         headers,
         body,
     })

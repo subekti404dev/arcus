@@ -20,10 +20,19 @@ type RequestHistory = {
   response?: ResponseState;
 };
 
+type ResponseTimings = {
+  totalMs: number;
+  uploadMs: number;
+  downloadMs: number;
+  firstByteMs: number;
+  bodyReadMs: number;
+};
+
 type ResponseState = {
   status: number;
   statusText: string;
   durationMs: number;
+  timings: ResponseTimings;
   headers: Record<string, string>;
   body: string;
 };
@@ -176,6 +185,7 @@ function App() {
   const [toastMessage, setToastMessage] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [responseView, setResponseView] = useState<'preview' | 'raw' | 'headers'>('preview');
+  const [showTimingBreakdown, setShowTimingBreakdown] = useState(false);
   const [auth, setAuth] = useState<AuthState>(() => defaultAuth());
   const [collections, setCollections] = useState<Collection[]>(() => loadJson<Collection[]>(collectionsStorageKey, []));
   const [environments, setEnvironments] = useState<Environment[]>(() => loadJson<Environment[]>(environmentsStorageKey, []));
@@ -380,11 +390,23 @@ function App() {
       headers: requestHeaders,
       body: fetchBody,
     });
+    const headersReceivedAt = performance.now();
     const text = await res.text();
+    const completedAt = performance.now();
+    const totalMs = Math.round(completedAt - startedAt);
+    const firstByteMs = Math.round(headersReceivedAt - startedAt);
+    const bodyReadMs = Math.round(completedAt - headersReceivedAt);
     return {
       status: res.status,
       statusText: res.statusText,
-      durationMs: Math.round(performance.now() - startedAt),
+      durationMs: totalMs,
+      timings: {
+        totalMs,
+        uploadMs: firstByteMs,
+        downloadMs: bodyReadMs,
+        firstByteMs,
+        bodyReadMs,
+      },
       headers: Object.fromEntries(res.headers.entries()),
       body: text,
     };
@@ -405,10 +427,26 @@ function App() {
           })
         : await sendWithFetch();
 
-      const nextResponse = {
+      const durationMs = 'duration_ms' in result ? Number(result.duration_ms) : result.durationMs;
+      let timings: ResponseTimings;
+      if ('duration_ms' in result && result.timings) {
+        timings = {
+          totalMs: Number(result.timings.total_ms),
+          uploadMs: Number(result.timings.upload_ms),
+          downloadMs: Number(result.timings.download_ms),
+          firstByteMs: Number(result.timings.first_byte_ms),
+          bodyReadMs: Number(result.timings.body_read_ms),
+        };
+      } else if (!('duration_ms' in result) && result.timings) {
+        timings = result.timings;
+      } else {
+        timings = { totalMs: durationMs, uploadMs: durationMs, downloadMs: 0, firstByteMs: durationMs, bodyReadMs: 0 };
+      }
+      const nextResponse: ResponseState = {
         status: result.status,
         statusText: 'status_text' in result ? result.status_text : result.statusText,
-        durationMs: 'duration_ms' in result ? Number(result.duration_ms) : result.durationMs,
+        durationMs,
+        timings,
         headers: result.headers,
         body: prettyJson(result.body),
       };
@@ -1284,9 +1322,22 @@ function App() {
               <>
                 <div className="response-meta">
                   <span className={statusBadgeClass(response.status)}>{response.status} {response.statusText}</span>
-                  <span>{response.durationMs}ms</span>
+                  <span>{response.durationMs}ms total</span>
                   <span>{Object.keys(response.headers).length} headers</span>
                 </div>
+                <button className="timing-toggle" onClick={() => setShowTimingBreakdown((value) => !value)}>
+                  <span>{showTimingBreakdown ? '−' : '+'}</span>
+                  Timing breakdown
+                </button>
+                {showTimingBreakdown && (
+                  <div className="timing-breakdown">
+                    <div><span>Total</span><strong>{response.timings.totalMs}ms</strong></div>
+                    <div><span>Request + TTFB</span><strong>{response.timings.firstByteMs}ms</strong></div>
+                    <div><span>Upload</span><strong>{response.timings.uploadMs}ms</strong></div>
+                    <div><span>Download</span><strong>{response.timings.downloadMs}ms</strong></div>
+                    <div><span>Body Read</span><strong>{response.timings.bodyReadMs}ms</strong></div>
+                  </div>
+                )}
                 <div className="response-body-header">
                   <div className="section-title">{responseView === 'headers' ? 'Response Headers' : 'Response Body'}</div>
                   <button className="copy-body-button" onClick={copyResponseBody} title="Copy response body">Copy</button>

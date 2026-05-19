@@ -231,6 +231,13 @@ textarea:disabled { opacity: .55; }
 .response-meta .status-3xx { color: #93c5fd; border-color: #1e3a5f; background: rgba(30, 58, 95, .22); }
 .response-meta .status-4xx { color: #fde68a; border-color: #78350f; background: rgba(120, 53, 15, .22); }
 .response-meta .status-5xx { color: #fca5a5; border-color: #991b1b; background: rgba(153, 27, 27, .22); }
+.timing-toggle { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #334155; color: #94a3b8; background: #020617; border-radius: 10px; padding: 7px 10px; margin: -6px 0 12px; cursor: pointer; font-size: 12px; font-weight: 800; }
+.timing-toggle:hover { border-color: #f97316; color: #fed7aa; }
+.timing-toggle span { color: #fb923c; font-size: 14px; line-height: 1; }
+.timing-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0 0 18px; }
+.timing-breakdown div { border: 1px solid #1e293b; background: #020617; border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.timing-breakdown span { color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.timing-breakdown strong { color: #e2e8f0; font-size: 14px; }
 .status-2xx { color: #86efac; }
 .status-3xx { color: #93c5fd; }
 .status-4xx { color: #fde68a; }

@@ -1,10 +1,19 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { HeaderRow, HttpMethod } from './types';
 
+export type ResponseTimings = {
+  total_ms: number;
+  upload_ms: number;
+  download_ms: number;
+  first_byte_ms: number;
+  body_read_ms: number;
+};
+
 export type NativeHttpResponse = {
   status: number;
   status_text: string;
   duration_ms: number;
+  timings?: ResponseTimings;
   headers: Record<string, string>;
   body: string;
 };

@@ -183,7 +183,7 @@ Tambahkan UI khusus query params, bukan hanya mengetik manual di URL.
 
 ## Prioritas Rendah / Enhancement
 
-### 9. Request Timing Breakdown
+### 9. Request Timing Breakdown ✅ DONE
 
 Tampilkan informasi timing request.
 
