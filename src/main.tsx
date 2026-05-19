@@ -69,6 +69,7 @@ type RequestTab = {
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const collectionsStorageKey = 'arcus:collections';
 const historyStorageKey = 'arcus:history';
+const historyRetentionMs = 2 * 24 * 60 * 60 * 1000;
 const environmentsStorageKey = 'arcus:environments';
 const activeEnvStorageKey = 'arcus:activeEnv';
 
@@ -203,7 +204,9 @@ function App() {
     setUrl(qs ? `${base}${qs}` : base);
   }
   const [response, setResponse] = useState<ResponseState | null>(null);
-  const [history, setHistory] = useState<RequestHistory[]>(() => loadJson<RequestHistory[]>(historyStorageKey, []).sort((a, b) => b.createdAtMs - a.createdAtMs));
+  const [history, setHistory] = useState<RequestHistory[]>(() => loadJson<RequestHistory[]>(historyStorageKey, [])
+    .filter((item) => item.createdAtMs && Date.now() - item.createdAtMs <= historyRetentionMs)
+    .sort((a, b) => b.createdAtMs - a.createdAtMs));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [curlInput, setCurlInput] = useState('');
@@ -318,7 +321,9 @@ function App() {
   }, [collections]);
 
   useEffect(() => {
-    saveJson(historyStorageKey, history.slice(0, 20));
+    const freshHistory = history.filter((item) => item.createdAtMs && Date.now() - item.createdAtMs <= historyRetentionMs).slice(0, 20);
+    saveJson(historyStorageKey, freshHistory);
+    if (freshHistory.length !== history.length) setHistory(freshHistory);
   }, [history]);
 
   useEffect(() => {
@@ -491,7 +496,7 @@ function App() {
       setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, snapshot } : tab));
       setHistory((items) => [
         { id: uid(), method, url: effectiveUrl, status: result.status, durationMs: nextResponse.durationMs, createdAt: new Date().toLocaleString(), createdAtMs: Date.now(), snapshot, response: nextResponse },
-        ...items.sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 19),
+        ...items.filter((item) => item.createdAtMs && Date.now() - item.createdAtMs <= historyRetentionMs).sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 19),
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown request error';
@@ -500,7 +505,7 @@ function App() {
       setTabs((items) => items.map((tab) => tab.id === activeTabId ? { ...tab, snapshot } : tab));
       setHistory((items) => [
         { id: uid(), method, url: effectiveUrl, createdAt: new Date().toLocaleString(), createdAtMs: Date.now(), snapshot },
-        ...items.sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 19),
+        ...items.filter((item) => item.createdAtMs && Date.now() - item.createdAtMs <= historyRetentionMs).sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 19),
       ]);
     } finally {
       setLoading(false);
