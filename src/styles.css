@@ -37,10 +37,10 @@ button:active { transform: translateY(1px) scale(.99); }
 .sidebar-toggle-btn:hover { color: #f8fafc; }
 .brand { display: none; font-size: 24px; font-weight: 800; letter-spacing: -.04em; margin-bottom: 20px; }
 .brand span { color: #f97316; }
-.new-button, .request-bar button:not(.dropdown-trigger):not(.dropdown-option), .secondary-button { width: 100%; border: 1px solid transparent; color: white; background: #f97316; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; line-height: 1.4; }
-.new-button:hover, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):hover, .secondary-button:hover { background: #fb923c; }
-.request-bar .snippet-button { color: #cbd5e1; background: #1e293b; border: 1px solid #334155 !important; line-height: 1.4; }
-.request-bar .snippet-button:hover { background: #334155; }
+.new-button, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):not(.snippet-button), .secondary-button { width: 100%; border: 1px solid transparent; color: white; background: #f97316; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; line-height: 1.4; }
+.new-button:hover, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):not(.snippet-button):hover, .secondary-button:hover { background: #fb923c; }
+.request-bar .snippet-button { color: #fed7aa; background: rgba(249, 115, 22, .12); border: 1px solid #f97316; border-radius: 10px; font-weight: 800; }
+.request-bar .snippet-button:hover { background: rgba(249, 115, 22, .2); }
 .import-button { width: 100%; margin-top: 10px; border: 1px solid #f97316; color: #fed7aa; background: rgba(249, 115, 22, .12); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
 .import-button:hover { background: rgba(249, 115, 22, .2); }
 .request-bar button:disabled, .request-bar button.dropdown-trigger:disabled, .secondary-button:disabled { opacity: .55; cursor: not-allowed; }
