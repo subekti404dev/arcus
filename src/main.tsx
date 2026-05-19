@@ -66,6 +66,7 @@ type RequestTab = {
 
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const collectionsStorageKey = 'arcus:collections';
+const historyStorageKey = 'arcus:history';
 const environmentsStorageKey = 'arcus:environments';
 const activeEnvStorageKey = 'arcus:activeEnv';
 
@@ -195,7 +196,7 @@ function App() {
     setUrl(qs ? `${base}${qs}` : base);
   }
   const [response, setResponse] = useState<ResponseState | null>(null);
-  const [history, setHistory] = useState<RequestHistory[]>([]);
+  const [history, setHistory] = useState<RequestHistory[]>(() => loadJson<RequestHistory[]>(historyStorageKey, []));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [curlInput, setCurlInput] = useState('');
@@ -308,6 +309,10 @@ function App() {
   useEffect(() => {
     saveJson(collectionsStorageKey, collections);
   }, [collections]);
+
+  useEffect(() => {
+    saveJson(historyStorageKey, history.slice(0, 20));
+  }, [history]);
 
   useEffect(() => {
     saveJson(environmentsStorageKey, environments);
