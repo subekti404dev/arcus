@@ -31,7 +31,10 @@ button:active { transform: translateY(1px) scale(.99); }
 .window-controls .close-window:hover { background: #ef4444; color: #fff; }
 
 .shell { display: flex; height: calc(100vh - 42px); min-height: 0; }
-.sidebar { width: 320px; padding: 22px; border-right: 1px solid var(--border); background: rgba(2, 6, 23, .56); backdrop-filter: blur(22px); overflow: auto; }
+.sidebar { width: 320px; min-width: 0; padding: 22px; border-right: 1px solid var(--border); background: rgba(2, 6, 23, .56); backdrop-filter: blur(22px); overflow: auto; transition: width .22s ease, padding .22s ease, border .22s ease; }
+.sidebar-collapsed { width: 0; padding: 0; border-right: 0; overflow: hidden; }
+.sidebar-toggle-btn { border: 0; background: transparent; color: #94a3b8; cursor: pointer; padding: 0 6px; display: grid; place-items: center; }
+.sidebar-toggle-btn:hover { color: #f8fafc; }
 .brand { display: none; font-size: 24px; font-weight: 800; letter-spacing: -.04em; margin-bottom: 20px; }
 .brand span { color: #f97316; }
 .new-button, .request-bar button:not(.dropdown-trigger):not(.dropdown-option), .secondary-button { width: 100%; border: 1px solid transparent; color: white; background: #f97316; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; line-height: 1.4; }

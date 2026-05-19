@@ -172,6 +172,12 @@ function App() {
     return params.length > 0 ? `?${params.join('&')}` : '';
   }
 
+  function toggleSidebar() {
+    const next = !sidebarVisible;
+    localStorage.setItem('arcus:sidebar', String(next));
+    setSidebarVisible(next);
+  }
+
   function setUrlPreservingQuery(raw: string) {
     const idx = raw.indexOf('?');
     if (idx === -1) {
@@ -212,6 +218,7 @@ function App() {
   const [curlInput, setCurlInput] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const [sidebarVisible, setSidebarVisible] = useState(() => localStorage.getItem('arcus:sidebar') !== 'false');
   const [showImportModal, setShowImportModal] = useState(false);
   const [responseView, setResponseView] = useState<'preview' | 'raw' | 'headers'>('preview');
   const [showTimingBreakdown, setShowTimingBreakdown] = useState(false);
@@ -1164,6 +1171,21 @@ function App() {
     <main className="app-shell">
       <header className="titlebar" data-tauri-drag-region>
         <div className="titlebar-brand" data-tauri-drag-region>
+          <button className="sidebar-toggle-btn" onClick={toggleSidebar} title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}>
+            {sidebarVisible ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <rect x="2" y="3" width="3" height="18" rx="1.5" fill="currentColor" opacity=".45"/>
+                <rect x="7" y="3" width="15" height="8" rx="2" fill="currentColor" opacity=".85"/>
+                <rect x="7" y="13" width="15" height="8" rx="2" fill="currentColor" opacity=".85"/>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <rect x="2" y="3" width="7" height="18" rx="2" fill="currentColor" opacity=".85"/>
+                <rect x="11" y="3" width="11" height="8" rx="2" fill="currentColor" opacity=".85"/>
+                <rect x="11" y="13" width="11" height="8" rx="2" fill="currentColor" opacity=".85"/>
+              </svg>
+            )}
+          </button>
           <span className="app-dot" />
           <strong data-tauri-drag-region>Arcus</strong>
         </div>
@@ -1174,7 +1196,7 @@ function App() {
         </div>
       </header>
       <div className="shell">
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarVisible ? '' : ' sidebar-collapsed'}`}>
         <div className="brand">Arcus</div>
         <button className="new-button" onClick={() => newTab()}>
           + New Request
