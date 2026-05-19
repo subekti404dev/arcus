@@ -101,7 +101,17 @@ function App() {
   const filteredCollections = useMemo(() => {
     if (!searchQuery.trim()) return collections;
     const q = searchQuery.toLowerCase();
-    return collections.filter((c) => c.name.toLowerCase().includes(q) || c.requests.some((r) => r.name.toLowerCase().includes(q)));
+    return collections.reduce<Collection[]>((acc, collection) => {
+      const collectionNameMatches = collection.name.toLowerCase().includes(q);
+      const matchingRequests = collectionNameMatches
+        ? collection.requests
+        : collection.requests.filter((r) => r.name.toLowerCase().includes(q) || r.method.toLowerCase().includes(q) || r.url.toLowerCase().includes(q));
+
+      if (collectionNameMatches || matchingRequests.length > 0) {
+        acc.push({ ...collection, requests: matchingRequests });
+      }
+      return acc;
+    }, []);
   }, [collections, searchQuery]);
   const responseJson = useMemo(() => response ? parseJson(response.body) : null, [response]);
   const activeSavedRequestExists = useMemo(() => {
