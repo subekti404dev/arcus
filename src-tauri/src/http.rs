@@ -26,6 +26,7 @@ pub struct HttpRequestInput {
     pub url: String,
     pub headers: Vec<HeaderInput>,
     pub body: Option<String>,
+    #[serde(rename = "formFields")]
     pub form_fields: Option<Vec<FormField>>,
 }
 
