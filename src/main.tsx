@@ -86,7 +86,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [renamingRequestId, setRenamingRequestId] = useState('');
   const [renameValue, setRenameValue] = useState('');
-  const [menuOpenRequestId, setMenuOpenRequestId] = useState('');
+  const [menuState, setMenuState] = useState<{ requestId: string; collectionId: string; rect: DOMRect; name: string } | null>(null);
 
   const canHaveBody = !['GET', 'DELETE'].includes(method);
 
@@ -521,17 +521,7 @@ function App() {
                       </button>
                     )}
                     <div className="saved-request-menu">
-                      <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); setMenuOpenRequestId(menuOpenRequestId === saved.id ? '' : saved.id); }} title="More actions">⋮</button>
-                      {menuOpenRequestId === saved.id && (
-                        <>
-                          <div className="menu-backdrop" onClick={() => setMenuOpenRequestId('')} />
-                          <div className="menu-dropdown">
-                            <button onClick={() => { duplicateSavedRequest(collection.id, saved.id); setMenuOpenRequestId(''); }}>⧉ Duplicate</button>
-                            <button onClick={() => { startRename(saved.id, saved.name); setMenuOpenRequestId(''); }}>✎ Rename</button>
-                            <button className="menu-danger" onClick={() => { deleteSavedRequest(collection.id, saved.id); setMenuOpenRequestId(''); }}>× Delete</button>
-                          </div>
-                        </>
-                      )}
+                      <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setMenuState(menuState?.requestId === saved.id ? null : { requestId: saved.id, collectionId: collection.id, rect, name: saved.name }); }} title="More actions">⋮</button>
                     </div>
                   </div>
                 ))}
@@ -737,6 +727,17 @@ function App() {
         </div>
       </section>
       </div>
+
+      {menuState && (
+        <>
+          <div className="menu-backdrop" onClick={() => setMenuState(null)} />
+          <div className="menu-dropdown" style={{ position: 'fixed', top: menuState.rect.bottom + 4, right: window.innerWidth - menuState.rect.right, zIndex: 100 }}>
+            <button onClick={() => { duplicateSavedRequest(menuState.collectionId, menuState.requestId); setMenuState(null); }}>⧉ Duplicate</button>
+            <button onClick={() => { startRename(menuState.requestId, menuState.name); setMenuState(null); }}>✎ Rename</button>
+            <button className="menu-danger" onClick={() => { deleteSavedRequest(menuState.collectionId, menuState.requestId); setMenuState(null); }}>× Delete</button>
+          </div>
+        </>
+      )}
 
       {showCollectionModal && (
         <div className="modal-backdrop" onClick={() => setShowCollectionModal(false)}>
