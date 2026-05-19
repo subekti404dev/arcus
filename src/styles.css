@@ -36,8 +36,8 @@ button:active { transform: translateY(1px) scale(.99); }
 .brand span { color: #f97316; }
 .new-button, .request-bar button:not(.dropdown-trigger):not(.dropdown-option), .secondary-button { width: 100%; border: 0; color: white; background: #f97316; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; }
 .new-button:hover, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):hover, .secondary-button:hover { background: #fb923c; }
-.request-bar .copy-curl-button { color: #dbeafe; background: #2563eb; }
-.request-bar .copy-curl-button:hover { background: #3b82f6; }
+.request-bar .copy-curl-button { color: #cbd5e1; background: #1e293b; border: 1px solid #334155 !important; }
+.request-bar .copy-curl-button:hover { background: #334155; }
 .import-button { width: 100%; margin-top: 10px; border: 1px solid #f97316; color: #fed7aa; background: rgba(249, 115, 22, .12); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
 .import-button:hover { background: rgba(249, 115, 22, .2); }
 .request-bar button:disabled, .request-bar button.dropdown-trigger:disabled, .secondary-button:disabled { opacity: .55; cursor: not-allowed; }

@@ -708,9 +708,9 @@ function App() {
             options={methods.map((m) => ({ value: m, label: m }))}
           />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter request URL" />
-          <button onClick={copyAsCurl} disabled={!url.trim()} className="copy-curl-button">Copy cURL</button>
-          <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button">Save</button>
           <button onClick={sendRequest} disabled={loading || !url.trim()}>{loading ? 'Sending...' : 'Send'}</button>
+          <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button">Save</button>
+          <button onClick={copyAsCurl} disabled={!url.trim()} className="copy-curl-button">Copy cURL</button>
         </div>
         {toastMessage && <div className="toast-message">{toastMessage}</div>}
 
