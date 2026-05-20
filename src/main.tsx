@@ -241,6 +241,7 @@ function App() {
   const [newCollectionName, setNewCollectionName] = useState('');
   const [deleteTargetCollectionId, setDeleteTargetCollectionId] = useState('');
   const [folderModalCollectionId, setFolderModalCollectionId] = useState('');
+  const [folderModalParentId, setFolderModalParentId] = useState('');
   const [folderModalName, setFolderModalName] = useState('');
   const [editingFolderId, setEditingFolderId] = useState('');
   const [deleteTargetFolder, setDeleteTargetFolder] = useState<{ collectionId: string; folderId: string; name: string; requestCount: number } | null>(null);
@@ -668,8 +669,9 @@ function App() {
     setDeleteTargetCollectionId(collectionId);
   }
 
-  function openFolderModal(collectionId: string, folder?: CollectionFolder) {
+  function openFolderModal(collectionId: string, folder?: CollectionFolder, parentId = '') {
     setFolderModalCollectionId(collectionId);
+    setFolderModalParentId(folder?.parentId ?? parentId);
     setEditingFolderId(folder?.id ?? '');
     setFolderModalName(folder?.name ?? '');
   }
@@ -684,16 +686,17 @@ function App() {
         return {
           ...collection,
           updatedAt: now,
-          folders: folders.map((folder) => folder.id === editingFolderId ? { ...folder, name: folderModalName.trim(), updatedAt: now } : folder),
+          folders: folders.map((folder) => folder.id === editingFolderId ? { ...folder, name: folderModalName.trim(), parentId: folderModalParentId || undefined, updatedAt: now } : folder),
         };
       }
       return {
         ...collection,
         updatedAt: now,
-        folders: [{ id: uid(), name: folderModalName.trim(), createdAt: now, updatedAt: now }, ...folders],
+        folders: [{ id: uid(), name: folderModalName.trim(), parentId: folderModalParentId || undefined, createdAt: now, updatedAt: now }, ...folders],
       };
     }));
     setFolderModalCollectionId('');
+    setFolderModalParentId('');
     setEditingFolderId('');
     setFolderModalName('');
   }
@@ -726,6 +729,20 @@ function App() {
   const saveModalFolders = useMemo(() => {
     return saveModalCollection?.folders ?? [];
   }, [saveModalCollection]);
+
+  function folderDisplayName(folder: CollectionFolder, folders: CollectionFolder[] = []) {
+    const names = [folder.name];
+    let parentId = folder.parentId;
+    const seen = new Set([folder.id]);
+    while (parentId && !seen.has(parentId)) {
+      const parent = folders.find((item) => item.id === parentId);
+      if (!parent) break;
+      names.unshift(parent.name);
+      seen.add(parent.id);
+      parentId = parent.parentId;
+    }
+    return names.join(' / ');
+  }
 
   const saveModalRequests = useMemo(() => {
     return (saveModalCollection?.requests ?? []).filter((request) => (request.folderId ?? '') === saveModalFolderId);
@@ -1254,11 +1271,25 @@ function App() {
                 <button className="folder-action" onClick={() => openFolderModal(collection.id)} title="Create folder in this collection">+ New folder</button>
                 {(collection.folders ?? []).map((folder) => {
                   const folderRequests = collection.requests.filter((saved) => saved.folderId === folder.id);
+                  const depth = (() => {
+                    let level = 0;
+                    let parentId = folder.parentId;
+                    const seen = new Set([folder.id]);
+                    while (parentId && !seen.has(parentId)) {
+                      const parent = (collection.folders ?? []).find((item) => item.id === parentId);
+                      if (!parent) break;
+                      level += 1;
+                      seen.add(parent.id);
+                      parentId = parent.parentId;
+                    }
+                    return level;
+                  })();
                   return (
-                    <details className="folder-item" key={folder.id} open>
+                    <details className="folder-item" key={folder.id} open style={{ marginLeft: depth ? Math.min(depth * 10, 30) : 0 }}>
                       <summary>
                         <span>{folder.name}</span>
                         <small>{folderRequests.length}</small>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id, undefined, folder.id); }} title="Add subfolder">+</button>
                         <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id, folder); }} title="Rename folder">✎</button>
                         <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openDeleteFolderModal(collection.id, folder); }} title="Delete folder">×</button>
                       </summary>
@@ -1733,6 +1764,16 @@ function App() {
               </div>
               <button className="close-button" onClick={() => setFolderModalCollectionId('')} aria-label="Close folder modal">×</button>
             </div>
+            <Dropdown
+              value={folderModalParentId}
+              onChange={setFolderModalParentId}
+              options={[
+                { value: '', label: 'Collection root' },
+                ...((collections.find((collection) => collection.id === folderModalCollectionId)?.folders ?? [])
+                  .filter((folder) => folder.id !== editingFolderId)
+                  .map((folder) => ({ value: folder.id, label: folderDisplayName(folder, collections.find((collection) => collection.id === folderModalCollectionId)?.folders ?? []) }))),
+              ]}
+            />
             <input className="modal-input" value={folderModalName} onChange={(event) => setFolderModalName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') saveFolder(); }} placeholder="Folder name" autoFocus />
             <div className="modal-actions" style={{ marginTop: 18 }}>
               <button className="ghost-action" onClick={() => setFolderModalCollectionId('')} title="Cancel">Cancel</button>
