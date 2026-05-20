@@ -1334,10 +1334,16 @@ function App() {
               </div>
             ) : (
               <>
-                <div className="headers-table">
+                <div className="headers-table spreadsheet-table">
+                  <div className="spreadsheet-head">
+                    <span />
+                    <span>Key</span>
+                    <span>Value</span>
+                    <span />
+                  </div>
                   {queryRows.map((row) => (
-                    <div className="header-row" key={row.id}>
-                      <input type="checkbox" checked={row.enabled} onChange={(e) => updateQueryRow(row.id, { enabled: e.target.checked })} />
+                    <div className="header-row spreadsheet-row" key={row.id}>
+                      <label className="sheet-check"><input type="checkbox" checked={row.enabled} onChange={(e) => updateQueryRow(row.id, { enabled: e.target.checked })} /></label>
                       <input value={row.key} onChange={(e) => updateQueryRow(row.id, { key: e.target.value })} placeholder="Param" />
                       <input value={row.value} onChange={(e) => updateQueryRow(row.id, { value: e.target.value })} placeholder="Value" />
                       <button className="ghost" onClick={() => deleteQueryRow(row.id)}>×</button>
@@ -1368,10 +1374,16 @@ function App() {
               </div>
             ) : (
               <>
-                <div className="headers-table">
+                <div className="headers-table spreadsheet-table">
+                  <div className="spreadsheet-head">
+                    <span />
+                    <span>Key</span>
+                    <span>Value</span>
+                    <span />
+                  </div>
                   {headers.map((row) => (
-                    <div className="header-row" key={row.id}>
-                      <input type="checkbox" checked={row.enabled} onChange={(e) => updateHeader(row.id, { enabled: e.target.checked })} />
+                    <div className="header-row spreadsheet-row" key={row.id}>
+                      <label className="sheet-check"><input type="checkbox" checked={row.enabled} onChange={(e) => updateHeader(row.id, { enabled: e.target.checked })} /></label>
                       <input value={row.key} onChange={(e) => updateHeader(row.id, { key: e.target.value })} placeholder="Header" />
                       <input value={row.value} onChange={(e) => updateHeader(row.id, { value: e.target.value })} placeholder="Value" />
                       <button className="ghost" onClick={() => setHeaders((rows) => rows.filter((item) => item.id !== row.id))}>×</button>
