@@ -1278,7 +1278,10 @@ function App() {
     } : item));
   }
 
+  const treeDragPayloadRef = useRef<{ type: 'request' | 'folder'; collectionId: string; id: string } | null>(null);
+
   function setTreeDragData(event: React.DragEvent, payload: { type: 'request' | 'folder'; collectionId: string; id: string }) {
+    treeDragPayloadRef.current = payload;
     const raw = JSON.stringify(payload);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', raw);
@@ -1286,17 +1289,24 @@ function App() {
     event.dataTransfer.setData('application/arcus-tree-item', raw);
   }
 
+  function handleTreeDragEnd() {
+    treeDragPayloadRef.current = null;
+  }
+
   function handleTreeDrop(event: React.DragEvent, collectionId: string, targetFolderId?: string) {
     event.preventDefault();
     event.currentTarget.classList.remove('drag-over');
     const raw = event.dataTransfer.getData('text/plain') || event.dataTransfer.getData('application/json') || event.dataTransfer.getData('application/arcus-tree-item');
-    if (!raw) return;
-    let dragged: { type: 'request' | 'folder'; collectionId: string; id: string };
-    try {
-      dragged = JSON.parse(raw) as { type: 'request' | 'folder'; collectionId: string; id: string };
-    } catch {
-      return;
+    let dragged = treeDragPayloadRef.current;
+    if (raw) {
+      try {
+        dragged = JSON.parse(raw) as { type: 'request' | 'folder'; collectionId: string; id: string };
+      } catch {
+        // macOS WKWebView can drop empty/unreadable DataTransfer data in production builds.
+        // Fall back to the in-memory payload captured at drag start.
+      }
     }
+    if (!dragged) return;
     if (dragged.collectionId !== collectionId) return;
     if (dragged.type === 'request') moveRequest(collectionId, dragged.id, targetFolderId);
     if (dragged.type === 'folder') moveFolder(collectionId, dragged.id, targetFolderId);
@@ -1319,6 +1329,7 @@ function App() {
               event.stopPropagation();
               setTreeDragData(event, { type: 'request', collectionId: collection.id, id: saved.id });
             }}
+            onDragEnd={handleTreeDragEnd}
             onClick={() => loadSavedRequest(collection.id, saved.id, true)}
             title="Open request / drag to move"
           >
@@ -1477,6 +1488,7 @@ function App() {
                           event.stopPropagation();
                           setTreeDragData(event, { type: 'folder', collectionId: collection.id, id: folder.id });
                         }}
+                        onDragEnd={handleTreeDragEnd}
                       >
                         <span className="folder-name"><span className="folder-icon" aria-hidden="true" />{folder.name}</span>
                         <small>{folderRequests.length}</small>
