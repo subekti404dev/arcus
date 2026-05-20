@@ -7,6 +7,8 @@ import { importPostmanCollection, exportAsPostmanCollection } from './postman';
 import Dropdown from './Dropdown';
 import { loadJson, saveJson } from './storage';
 import type { AuthState, AuthType, Collection, CollectionFolder, Environment, HeaderRow, HttpMethod, QueryRow } from './types';
+import curlIcon from './assets/curl.svg';
+import importCollectionIcon from './assets/import-collection.svg';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
 import './styles.css';
 type RequestHistory = {
@@ -1140,7 +1142,7 @@ function App() {
             <button onClick={() => setRenamingRequestId('')} title="Cancel rename">×</button>
           </div>
         ) : (
-          <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id, true)}>
+          <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id, true)} title="Open request">
             <strong className={methodColorClass(saved.method)}>{saved.method}</strong>
             <span>{saved.name}</span>
           </button>
@@ -1217,21 +1219,23 @@ function App() {
           <strong data-tauri-drag-region>Arcus</strong>
         </div>
         <div className="window-controls">
-          <button onClick={minimizeWindow} aria-label="Minimize window">−</button>
-          <button onClick={toggleMaximizeWindow} aria-label="Maximize window">□</button>
-          <button className="close-window" onClick={closeWindow} aria-label="Close window">×</button>
+          <button onClick={minimizeWindow} aria-label="Minimize window" title="Minimize window">−</button>
+          <button onClick={toggleMaximizeWindow} aria-label="Maximize window" title="Maximize window">□</button>
+          <button className="close-window" onClick={closeWindow} aria-label="Close window" title="Close window">×</button>
         </div>
       </header>
       <div className="shell">
       <aside className={`sidebar${sidebarVisible ? '' : ' sidebar-collapsed'}`}>
         <div className="brand">Arcus</div>
-        <button className="import-button" onClick={() => fileInputRef.current?.click()} style={{ background: 'rgba(100,116,139,.14)', borderColor: '#64748b', color: '#cbd5e1' }}>
-          Import Collection
-        </button>
         <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportCollection} style={{ display: 'none' }} />
         <div className="collections-header">
           <h3>Collections</h3>
-          <button onClick={() => setShowCollectionModal(true)} title="New collection">+</button>
+          <div className="collections-actions">
+            <button onClick={() => fileInputRef.current?.click()} title="Import collection" aria-label="Import collection">
+              <img src={importCollectionIcon} alt="" aria-hidden="true" />
+            </button>
+            <button onClick={() => setShowCollectionModal(true)} title="New collection">+</button>
+          </div>
         </div>
         {collections.length > 0 && (
           <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search collections..." className="search-input" autoComplete="off" />
@@ -1247,7 +1251,7 @@ function App() {
                 <button className="export-collection-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportCollection(collection); }} title="Export as Postman collection">↗</button>
               </summary>
               <div className="saved-request-list">
-                <button className="folder-action" onClick={() => openFolderModal(collection.id)}>+ New folder</button>
+                <button className="folder-action" onClick={() => openFolderModal(collection.id)} title="Create folder in this collection">+ New folder</button>
                 {(collection.folders ?? []).map((folder) => {
                   const folderRequests = collection.requests.filter((saved) => saved.folderId === folder.id);
                   return (
@@ -1267,7 +1271,7 @@ function App() {
                 })}
                 {collection.requests.filter((saved) => !saved.folderId).map((saved) => renderSavedRequest(collection, saved))}
                 {collection.requests.length === 0 && <p className="muted small">No saved requests.</p>}
-                <button className="delete-collection" onClick={() => openDeleteCollectionModal(collection.id)}>Delete collection</button>
+                <button className="delete-collection" onClick={() => openDeleteCollectionModal(collection.id)} title="Delete this collection">Delete collection</button>
               </div>
             </details>
           ))}
@@ -1286,7 +1290,7 @@ function App() {
                 onClick={() => setActiveEnvironmentId(env.id === activeEnvironmentId ? '' : env.id)}
               >
                 {env.name}
-                <button className="env-edit-btn" onClick={(e) => { e.stopPropagation(); openEnvEditor(env); }}>✎</button>
+                <button className="env-edit-btn" onClick={(e) => { e.stopPropagation(); openEnvEditor(env); }} title="Edit environment">✎</button>
               </span>
             ))}
           </div>
@@ -1300,7 +1304,7 @@ function App() {
         <div className="history-list">
           {history.length === 0 && <p className="muted">No requests yet.</p>}
           {history.map((item) => (
-            <button className="history-item" key={item.id} onClick={() => newTab(item.snapshot, false, `history:${item.id}`)}>
+            <button className="history-item" key={item.id} onClick={() => newTab(item.snapshot, false, `history:${item.id}`)} title="Open from history">
               <strong className={item.method ? methodColorClass(item.method) : ''}>{item.method}</strong>
               <span>{item.url}</span>
               <small><span className={item.status ? statusBadgeClass(item.status) : 'status-err'}>{item.status ?? 'err'}</span> · {item.status ? `${item.durationMs}ms` : 'failed'} · {item.createdAt}</small>
@@ -1312,7 +1316,7 @@ function App() {
       <section className="workspace">
         <div className="request-tabs">
           {tabs.map((tab) => (
-            <button key={tab.id} className={`request-tab ${tab.id === activeTabId ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)} onContextMenu={(e) => openTabMenu(e, tab.id)}>
+            <button key={tab.id} className={`request-tab ${tab.id === activeTabId ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)} onContextMenu={(e) => openTabMenu(e, tab.id)} title="Open tab / right-click for options">
               <span>{tab.dirty ? '• ' : ''}{tab.title}</span>
               <button className="request-tab-close" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} title="Close tab">×</button>
             </button>
@@ -1321,18 +1325,14 @@ function App() {
         </div>
         {tabMenu && (
           <div className="tab-context-menu" style={{ left: tabMenu.x, top: tabMenu.y }} onMouseLeave={() => setTabMenu(null)}>
-            <button onClick={() => { closeTab(tabMenu.tabId); setTabMenu(null); }}>Close this tab</button>
-            <button onClick={() => closeOtherTabs(tabMenu.tabId)} disabled={tabs.length <= 1}>Close other tabs</button>
-            <button onClick={closeAllTabs}>Close all tabs</button>
+            <button onClick={() => { closeTab(tabMenu.tabId); setTabMenu(null); }} title="Close selected tab">Close this tab</button>
+            <button onClick={() => closeOtherTabs(tabMenu.tabId)} disabled={tabs.length <= 1} title="Close every tab except this one">Close other tabs</button>
+            <button onClick={closeAllTabs} title="Close all tabs and open a blank one">Close all tabs</button>
           </div>
         )}
         <div className="request-bar">
           <button className="import-curl-inline-button" onClick={() => { setShowImportModal(true); setCurlInput(''); setImportMessage(''); }} title="Import cURL" aria-label="Import cURL">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-              <path d="M12 3v11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M5 13v5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+            <img src={curlIcon} alt="" aria-hidden="true" />
           </button>
           <Dropdown
             value={method}
@@ -1340,9 +1340,9 @@ function App() {
             options={methods.map((m) => ({ value: m, label: m }))}
           />
           <input value={url} onChange={(e) => setUrlPreservingQuery(e.target.value)} onPaste={handleUrlPaste} placeholder="Enter request URL" />
-          <button onClick={sendRequest} disabled={loading || !url.trim()}>{loading ? 'Sending...' : 'Send'}</button>
-          <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button">Save</button>
-          <button onClick={() => setShowSnippetModal(true)} disabled={!url.trim()} className="snippet-button">Code</button>
+          <button onClick={sendRequest} disabled={loading || !url.trim()} title="Send request">{loading ? 'Sending...' : 'Send'}</button>
+          <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button" title="Save request to collection">Save</button>
+          <button onClick={() => setShowSnippetModal(true)} disabled={!url.trim()} className="snippet-button" title="Generate code snippet">Code</button>
         </div>
         {toastMessage && <div className="toast-message">{toastMessage}</div>}
 
@@ -1351,7 +1351,7 @@ function App() {
             <h2>Request</h2>
             <div className="section-title">
               Query Params
-              <button className="bulk-edit-toggle" onClick={toggleBulkQuery}>
+              <button className="bulk-edit-toggle" onClick={toggleBulkQuery} title="Switch query params editor mode">
                 {bulkEditQuery ? 'Key-Value' : 'Bulk Edit'}
               </button>
             </div>
@@ -1381,17 +1381,17 @@ function App() {
                       <label className="sheet-check"><input type="checkbox" checked={row.enabled} onChange={(e) => updateQueryRow(row.id, { enabled: e.target.checked })} /></label>
                       <input value={row.key} onChange={(e) => updateQueryRow(row.id, { key: e.target.value })} placeholder="Param" />
                       <input value={row.value} onChange={(e) => updateQueryRow(row.id, { value: e.target.value })} placeholder="Value" />
-                      <button className="ghost" onClick={() => deleteQueryRow(row.id)}>×</button>
+                      <button className="ghost" onClick={() => deleteQueryRow(row.id)} title="Remove param">×</button>
                     </div>
                   ))}
                 </div>
-                <button className="link-button" onClick={() => { const next = [...queryRows, { id: uid(), key: '', value: '', enabled: true }]; setUrlFromQueryRows(next); }}>+ Add param</button>
+                <button className="link-button" onClick={() => { const next = [...queryRows, { id: uid(), key: '', value: '', enabled: true }]; setUrlFromQueryRows(next); }} title="Add query param">+ Add param</button>
               </>
             )}
 
             <div className="section-title">
               Headers
-              <button className="bulk-edit-toggle" onClick={toggleBulkHeaders}>
+              <button className="bulk-edit-toggle" onClick={toggleBulkHeaders} title="Switch headers editor mode">
                 {bulkEditHeaders ? 'Key-Value' : 'Bulk Edit'}
               </button>
             </div>
@@ -1421,11 +1421,11 @@ function App() {
                       <label className="sheet-check"><input type="checkbox" checked={row.enabled} onChange={(e) => updateHeader(row.id, { enabled: e.target.checked })} /></label>
                       <input value={row.key} onChange={(e) => updateHeader(row.id, { key: e.target.value })} placeholder="Header" />
                       <input value={row.value} onChange={(e) => updateHeader(row.id, { value: e.target.value })} placeholder="Value" />
-                      <button className="ghost" onClick={() => setHeaders((rows) => rows.filter((item) => item.id !== row.id))}>×</button>
+                      <button className="ghost" onClick={() => setHeaders((rows) => rows.filter((item) => item.id !== row.id))} title="Remove header">×</button>
                     </div>
                   ))}
                 </div>
-                <button className="link-button" onClick={() => setHeaders((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true }])}>+ Add header</button>
+                <button className="link-button" onClick={() => setHeaders((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true }])} title="Add header">+ Add header</button>
               </>
             )}
 
@@ -1525,7 +1525,7 @@ function App() {
                   ]}
                   disabled={!canHaveBody}
                 />
-                {bodyType === 'raw' && <button className="format-button" onClick={formatRequestBodyJson} disabled={!canHaveBody || !body.trim()}>Format JSON</button>}
+                {bodyType === 'raw' && <button className="format-button" onClick={formatRequestBodyJson} disabled={!canHaveBody || !body.trim()} title="Format body as JSON">Format JSON</button>}
               </div>
             </div>
             {bodyType === 'raw' ? (
@@ -1560,10 +1560,10 @@ function App() {
                     ) : (
                       <input value={row.value} onChange={(e) => updateBodyRow(row.id, { value: e.target.value })} placeholder={bodyType === 'form-data' ? 'Value' : 'Value'} disabled={!canHaveBody} />
                     )}
-                    <button className="ghost" onClick={() => setBodyRows((rows) => rows.filter((item) => item.id !== row.id))} disabled={!canHaveBody}>×</button>
+                    <button className="ghost" onClick={() => setBodyRows((rows) => rows.filter((item) => item.id !== row.id))} disabled={!canHaveBody} title="Remove form field">×</button>
                   </div>
                 ))}
-                <button className="link-button" onClick={() => setBodyRows((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true, fieldType: 'text' }])} disabled={!canHaveBody}>+ Add field</button>
+                <button className="link-button" onClick={() => setBodyRows((rows) => [...rows, { id: uid(), key: '', value: '', enabled: true, fieldType: 'text' }])} disabled={!canHaveBody} title="Add form-data field">+ Add field</button>
               </div>
             )}
           </section>
@@ -1579,7 +1579,7 @@ function App() {
                   <span>{response.durationMs}ms total</span>
                   <span>{Object.keys(response.headers).length} headers</span>
                 </div>
-                <button className="timing-toggle" onClick={() => setShowTimingBreakdown((value) => !value)}>
+                <button className="timing-toggle" onClick={() => setShowTimingBreakdown((value) => !value)} title="Show or hide timing breakdown">
                   <span>{showTimingBreakdown ? '−' : '+'}</span>
                   Timing breakdown
                 </button>
@@ -1596,9 +1596,9 @@ function App() {
                   <div className="section-title">{responseView === 'headers' ? 'Response Headers' : 'Response Body'}</div>
                   <button className="copy-body-button" onClick={copyResponseBody} title="Copy response body">Copy</button>
                   <div className="view-tabs" role="tablist" aria-label="Response view mode">
-                    <button className={responseView === 'preview' ? 'active' : ''} onClick={() => setResponseView('preview')} role="tab" aria-selected={responseView === 'preview'}>Preview</button>
-                    <button className={responseView === 'raw' ? 'active' : ''} onClick={() => setResponseView('raw')} role="tab" aria-selected={responseView === 'raw'}>Raw</button>
-                    <button className={responseView === 'headers' ? 'active' : ''} onClick={() => setResponseView('headers')} role="tab" aria-selected={responseView === 'headers'}>Headers</button>
+                    <button className={responseView === 'preview' ? 'active' : ''} onClick={() => setResponseView('preview')} role="tab" aria-selected={responseView === 'preview'} title="Show formatted response preview">Preview</button>
+                    <button className={responseView === 'raw' ? 'active' : ''} onClick={() => setResponseView('raw')} role="tab" aria-selected={responseView === 'raw'} title="Show raw response body">Raw</button>
+                    <button className={responseView === 'headers' ? 'active' : ''} onClick={() => setResponseView('headers')} role="tab" aria-selected={responseView === 'headers'} title="Show response headers">Headers</button>
                   </div>
                 </div>
                 {responseView === 'headers' ? (
@@ -1626,9 +1626,9 @@ function App() {
         <>
           <div className="menu-backdrop" onClick={() => setMenuState(null)} />
           <div className="menu-dropdown" style={{ position: 'fixed', top: menuState.rect.bottom + 4, right: window.innerWidth - menuState.rect.right, zIndex: 100 }}>
-            <button onClick={() => { duplicateSavedRequest(menuState.collectionId, menuState.requestId); setMenuState(null); }}>⧉ Duplicate</button>
-            <button onClick={() => { startRename(menuState.requestId, menuState.name); setMenuState(null); }}>✎ Rename</button>
-            <button className="menu-danger" onClick={() => { setDeleteTargetRequest({ collectionId: menuState.collectionId, requestId: menuState.requestId, name: menuState.name }); setMenuState(null); }}>× Delete</button>
+            <button onClick={() => { duplicateSavedRequest(menuState.collectionId, menuState.requestId); setMenuState(null); }} title="Duplicate saved request">⧉ Duplicate</button>
+            <button onClick={() => { startRename(menuState.requestId, menuState.name); setMenuState(null); }} title="Rename saved request">✎ Rename</button>
+            <button className="menu-danger" onClick={() => { setDeleteTargetRequest({ collectionId: menuState.collectionId, requestId: menuState.requestId, name: menuState.name }); setMenuState(null); }} title="Delete saved request">× Delete</button>
           </div>
         </>
       )}
@@ -1654,7 +1654,7 @@ function App() {
                   { value: 'python', label: 'Python requests' },
                 ]}
               />
-              <button className="copy-body-button" onClick={copySnippet}>Copy</button>
+              <button className="copy-body-button" onClick={copySnippet} title="Copy generated code">Copy</button>
             </div>
             <pre className="snippet-preview" dangerouslySetInnerHTML={{ __html: highlightSnippet(generateSnippet()) }} />
           </section>
@@ -1673,8 +1673,8 @@ function App() {
             </div>
             <input className="modal-input" value={newCollectionName} onChange={(event) => setNewCollectionName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') createCollection(); }} placeholder="Collection name" autoFocus />
             <div className="modal-actions">
-              <button className="ghost-action" onClick={() => { setNewCollectionName(''); setShowCollectionModal(false); }}>Cancel</button>
-              <button className="secondary-button" onClick={createCollection} disabled={!newCollectionName.trim()}>Create</button>
+              <button className="ghost-action" onClick={() => { setNewCollectionName(''); setShowCollectionModal(false); }} title="Cancel">Cancel</button>
+              <button className="secondary-button" onClick={createCollection} disabled={!newCollectionName.trim()} title="Create collection">Create</button>
             </div>
           </section>
         </div>
@@ -1695,8 +1695,8 @@ function App() {
               <span>{collections.find((collection) => collection.id === deleteTargetCollectionId)?.requests.length ?? 0} saved requests</span>
             </div>
             <div className="modal-actions">
-              <button className="ghost-action" onClick={() => setDeleteTargetCollectionId('')}>Cancel</button>
-              <button className="danger-action" onClick={() => deleteCollection(deleteTargetCollectionId)}>Delete</button>
+              <button className="ghost-action" onClick={() => setDeleteTargetCollectionId('')} title="Cancel">Cancel</button>
+              <button className="danger-action" onClick={() => deleteCollection(deleteTargetCollectionId)} title="Delete collection">Delete</button>
             </div>
           </section>
         </div>
@@ -1716,8 +1716,8 @@ function App() {
               <strong>{deleteTargetRequest.name}</strong>
             </div>
             <div className="modal-actions">
-              <button className="ghost-action" onClick={() => setDeleteTargetRequest(null)}>Cancel</button>
-              <button className="danger-action" onClick={() => { deleteSavedRequest(deleteTargetRequest.collectionId, deleteTargetRequest.requestId); setDeleteTargetRequest(null); }}>Delete</button>
+              <button className="ghost-action" onClick={() => setDeleteTargetRequest(null)} title="Cancel">Cancel</button>
+              <button className="danger-action" onClick={() => { deleteSavedRequest(deleteTargetRequest.collectionId, deleteTargetRequest.requestId); setDeleteTargetRequest(null); }} title="Delete request">Delete</button>
             </div>
           </section>
         </div>
@@ -1735,8 +1735,8 @@ function App() {
             </div>
             <input className="modal-input" value={folderModalName} onChange={(event) => setFolderModalName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') saveFolder(); }} placeholder="Folder name" autoFocus />
             <div className="modal-actions" style={{ marginTop: 18 }}>
-              <button className="ghost-action" onClick={() => setFolderModalCollectionId('')}>Cancel</button>
-              <button className="secondary-button" onClick={saveFolder} disabled={!folderModalName.trim()}>{editingFolderId ? 'Rename' : 'Create'}</button>
+              <button className="ghost-action" onClick={() => setFolderModalCollectionId('')} title="Cancel">Cancel</button>
+              <button className="secondary-button" onClick={saveFolder} disabled={!folderModalName.trim()} title={editingFolderId ? 'Rename folder' : 'Create folder'}>{editingFolderId ? 'Rename' : 'Create'}</button>
             </div>
           </section>
         </div>
@@ -1757,8 +1757,8 @@ function App() {
               <span>{deleteTargetFolder.requestCount} saved requests</span>
             </div>
             <div className="modal-actions">
-              <button className="ghost-action" onClick={() => setDeleteTargetFolder(null)}>Cancel</button>
-              <button className="danger-action" onClick={deleteFolder}>Delete Folder</button>
+              <button className="ghost-action" onClick={() => setDeleteTargetFolder(null)} title="Cancel">Cancel</button>
+              <button className="danger-action" onClick={deleteFolder} title="Delete folder">Delete Folder</button>
             </div>
           </section>
         </div>
@@ -1775,8 +1775,8 @@ function App() {
               <button className="close-button" onClick={() => setShowClearHistoryModal(false)} aria-label="Close clear history modal">×</button>
             </div>
             <div className="modal-actions">
-              <button className="ghost-action" onClick={() => setShowClearHistoryModal(false)}>Cancel</button>
-              <button className="danger-action" onClick={() => { setHistory([]); setShowClearHistoryModal(false); }}>Clear All</button>
+              <button className="ghost-action" onClick={() => setShowClearHistoryModal(false)} title="Cancel">Cancel</button>
+              <button className="danger-action" onClick={() => { setHistory([]); setShowClearHistoryModal(false); }} title="Clear all history">Clear All</button>
             </div>
           </section>
         </div>
@@ -1811,6 +1811,7 @@ function App() {
                     key={req.id}
                     className={`save-modal-request-item ${req.id === saveModalSelectedRequestId ? 'save-modal-request-selected' : ''}`}
                     onClick={() => { setSaveModalSelectedRequestId(req.id); setSaveModalNewName(req.name); }}
+                    title="Select request to update"
                   >
                     <strong className={methodColorClass(req.method)}>{req.method}</strong>
                     <span>{req.name}</span>
@@ -1827,8 +1828,8 @@ function App() {
               style={{ marginTop: 12 }}
             />
             <div className="modal-actions" style={{ marginTop: 18 }}>
-              <button className="ghost-action" onClick={() => setShowSaveModal(false)}>Cancel</button>
-              <button className="secondary-button" onClick={doSaveRequest} disabled={!saveModalCollectionId || !saveModalNewName.trim()}>
+              <button className="ghost-action" onClick={() => setShowSaveModal(false)} title="Cancel">Cancel</button>
+              <button className="secondary-button" onClick={doSaveRequest} disabled={!saveModalCollectionId || !saveModalNewName.trim()} title="Save request">
                 {saveModalSelectedRequestId ? 'Update' : 'Save as New'}
               </button>
             </div>
@@ -1838,7 +1839,7 @@ function App() {
 
       {showImportModal && (
         <div className="modal-backdrop" onClick={() => setShowImportModal(false)}>
-          <section className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="import-curl-title">
+          <section className="modal-card curl-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="import-curl-title">
             <div className="import-header">
               <div>
                 <h2 id="import-curl-title">Import cURL</h2>
@@ -1849,8 +1850,8 @@ function App() {
             <textarea className="curl-input" value={curlInput} onChange={(e) => setCurlInput(e.target.value)} placeholder={"curl 'https://api.example.com/users' \\\n  -H 'accept: application/json' \\\n  --data-raw '{\"name\":\"Urip\"}'"} autoFocus />
             {importMessage && <small className="import-message">{importMessage}</small>}
             <div className="modal-actions">
-              <button className="ghost-action" onClick={() => { setCurlInput(''); setImportMessage(''); }}>Clear</button>
-              <button className="secondary-button" onClick={importCurl} disabled={!curlInput.trim()}>Import</button>
+              <button className="ghost-action" onClick={() => { setCurlInput(''); setImportMessage(''); }} title="Clear cURL input">Clear</button>
+              <button className="secondary-button" onClick={importCurl} disabled={!curlInput.trim()} title="Import cURL into current request">Import</button>
             </div>
           </section>
         </div>
@@ -1858,7 +1859,7 @@ function App() {
 
       {showEnvEditor && (
         <div className="modal-backdrop" onClick={() => setShowEnvEditor(false)}>
-          <section className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="env-editor-title">
+          <section className="modal-card env-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="env-editor-title">
             <div className="import-header">
               <div>
                 <h2 id="env-editor-title">{editingEnvId ? 'Edit Environment' : 'New Environment'}</h2>
@@ -1873,15 +1874,15 @@ function App() {
                   <input type="checkbox" checked={v.enabled} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], enabled: e.target.checked }; setEnvVars(next); }} />
                   <input value={v.key} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], key: e.target.value }; setEnvVars(next); }} placeholder="VAR_NAME" />
                   <input value={v.value} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], value: e.target.value }; setEnvVars(next); }} placeholder="value" />
-                  <button className="ghost" onClick={() => setEnvVars((prev) => prev.filter((_, j) => j !== i))}>×</button>
+                  <button className="ghost" onClick={() => setEnvVars((prev) => prev.filter((_, j) => j !== i))} title="Remove variable">×</button>
                 </div>
               ))}
             </div>
-            <button className="link-button" onClick={() => setEnvVars((prev) => [...prev, { key: '', value: '', enabled: true }])}>+ Add variable</button>
+            <button className="link-button" onClick={() => setEnvVars((prev) => [...prev, { key: '', value: '', enabled: true }])} title="Add environment variable">+ Add variable</button>
             <div className="modal-actions" style={{ marginTop: 18 }}>
-              <button className="ghost-action" onClick={() => setShowEnvEditor(false)}>Cancel</button>
-              {editingEnvId && <button className="danger-action" onClick={() => deleteEnvironment(editingEnvId)} style={{ marginRight: 'auto' }}>Delete</button>}
-              <button className="secondary-button" onClick={saveEnvironment} disabled={!envName.trim()}>Save</button>
+              <button className="ghost-action" onClick={() => setShowEnvEditor(false)} title="Cancel">Cancel</button>
+              {editingEnvId && <button className="danger-action" onClick={() => deleteEnvironment(editingEnvId)} style={{ marginRight: 'auto' }} title="Delete environment">Delete</button>}
+              <button className="secondary-button" onClick={saveEnvironment} disabled={!envName.trim()} title="Save environment">Save</button>
             </div>
           </section>
         </div>
