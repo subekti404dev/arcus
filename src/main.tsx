@@ -260,6 +260,7 @@ function App() {
   const [bulkHeadersRaw, setBulkHeadersRaw] = useState('');
   const [bulkEditQuery, setBulkEditQuery] = useState(false);
   const [bulkQueryRaw, setBulkQueryRaw] = useState('');
+  const [tabMenu, setTabMenu] = useState<{ tabId: string; x: number; y: number } | null>(null);
   const hydratingTabRef = useRef(false);
   const tabsRef = useRef<RequestTab[]>(tabs);
 
@@ -584,6 +585,32 @@ function App() {
       setActiveTabId(nextTab.id);
       applySnapshot(nextTab.snapshot);
     }
+  }
+
+  function closeOtherTabs(tabId: string) {
+    const target = tabsRef.current.find((tab) => tab.id === tabId);
+    if (!target) return;
+    tabsRef.current = [target];
+    setTabs([target]);
+    setActiveTabId(target.id);
+    applySnapshot(target.snapshot);
+    setTabMenu(null);
+  }
+
+  function closeAllTabs() {
+    const blank = createBlankSnapshot();
+    const resetTabs = [{ id: uid(), title: tabTitle(blank), dirty: false, snapshot: blank }];
+    tabsRef.current = resetTabs;
+    setTabs(resetTabs);
+    setActiveTabId(resetTabs[0].id);
+    applySnapshot(blank);
+    setTabMenu(null);
+  }
+
+  function openTabMenu(event: React.MouseEvent, tabId: string) {
+    event.preventDefault();
+    setActiveTab(tabId);
+    setTabMenu({ tabId, x: event.clientX, y: event.clientY });
   }
 
   function createCollection() {
@@ -1198,12 +1225,6 @@ function App() {
       <div className="shell">
       <aside className={`sidebar${sidebarVisible ? '' : ' sidebar-collapsed'}`}>
         <div className="brand">Arcus</div>
-        <button className="new-button" onClick={() => newTab()}>
-          + New Request
-        </button>
-        <button className="import-button" onClick={() => { setShowImportModal(true); setCurlInput(''); setImportMessage(''); }}>
-          Import cURL
-        </button>
         <button className="import-button" onClick={() => fileInputRef.current?.click()} style={{ background: 'rgba(100,116,139,.14)', borderColor: '#64748b', color: '#cbd5e1' }}>
           Import Collection
         </button>
@@ -1291,14 +1312,28 @@ function App() {
       <section className="workspace">
         <div className="request-tabs">
           {tabs.map((tab) => (
-            <button key={tab.id} className={`request-tab ${tab.id === activeTabId ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+            <button key={tab.id} className={`request-tab ${tab.id === activeTabId ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)} onContextMenu={(e) => openTabMenu(e, tab.id)}>
               <span>{tab.dirty ? '• ' : ''}{tab.title}</span>
               <button className="request-tab-close" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} title="Close tab">×</button>
             </button>
           ))}
           <button className="request-tab-add" onClick={() => newTab()} title="New tab">+</button>
         </div>
+        {tabMenu && (
+          <div className="tab-context-menu" style={{ left: tabMenu.x, top: tabMenu.y }} onMouseLeave={() => setTabMenu(null)}>
+            <button onClick={() => { closeTab(tabMenu.tabId); setTabMenu(null); }}>Close this tab</button>
+            <button onClick={() => closeOtherTabs(tabMenu.tabId)} disabled={tabs.length <= 1}>Close other tabs</button>
+            <button onClick={closeAllTabs}>Close all tabs</button>
+          </div>
+        )}
         <div className="request-bar">
+          <button className="import-curl-inline-button" onClick={() => { setShowImportModal(true); setCurlInput(''); setImportMessage(''); }} title="Import cURL" aria-label="Import cURL">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+              <path d="M12 3v11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M5 13v5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
           <Dropdown
             value={method}
             onChange={(v) => setMethod(v as HttpMethod)}

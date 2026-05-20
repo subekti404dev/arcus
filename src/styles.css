@@ -37,10 +37,11 @@ button:active { transform: translateY(1px) scale(.99); }
 .sidebar-toggle-btn:hover { color: #f8fafc; }
 .brand { display: none; font-size: 24px; font-weight: 800; letter-spacing: -.04em; margin-bottom: 20px; }
 .brand span { color: #f97316; }
-.new-button, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):not(.snippet-button), .secondary-button { width: 100%; border: 1px solid transparent; color: white; background: #f97316; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; line-height: 1.4; }
-.new-button:hover, .request-bar button:not(.dropdown-trigger):not(.dropdown-option):not(.snippet-button):hover, .secondary-button:hover { background: #fb923c; }
-.request-bar .snippet-button { color: #fed7aa; background: rgba(249, 115, 22, .12); border: 1px solid #f97316; border-radius: 10px; font-weight: 800; }
-.request-bar .snippet-button:hover { background: rgba(249, 115, 22, .2); }
+.request-bar button:not(.dropdown-trigger):not(.dropdown-option):not(.snippet-button):not(.import-curl-inline-button), .secondary-button { width: 100%; border: 1px solid transparent; color: white; background: #f97316; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; line-height: 1.4; }
+.request-bar button:not(.dropdown-trigger):not(.dropdown-option):not(.snippet-button):not(.import-curl-inline-button):hover, .secondary-button:hover { background: #fb923c; }
+.request-bar .snippet-button, .request-bar .import-curl-inline-button { color: #fed7aa; background: rgba(249, 115, 22, .12); border: 1px solid #f97316; border-radius: 10px; font-weight: 800; cursor: pointer; }
+.request-bar .import-curl-inline-button { display: grid; place-items: center; padding: 0; }
+.request-bar .snippet-button:hover, .request-bar .import-curl-inline-button:hover { background: rgba(249, 115, 22, .2); }
 .import-button { width: 100%; margin-top: 10px; border: 1px solid #f97316; color: #fed7aa; background: rgba(249, 115, 22, .12); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
 .import-button:hover { background: rgba(249, 115, 22, .2); }
 .request-bar button:disabled, .request-bar button.dropdown-trigger:disabled, .secondary-button:disabled { opacity: .55; cursor: not-allowed; }
@@ -135,8 +136,12 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .request-tab-close:hover { color: #fecaca; }
 .request-tab-add { border: 1px solid #334155; color: #cbd5e1; background: #1e293b; border-radius: 10px; width: 32px; height: 32px; cursor: pointer; font-size: 18px; flex: 0 0 auto; }
 .request-tab-add:hover { border-color: #f97316; color: #fed7aa; }
+.tab-context-menu { position: fixed; z-index: 1000; min-width: 170px; padding: 6px; border: 1px solid #334155; border-radius: 12px; background: rgba(15, 23, 42, .96); box-shadow: 0 18px 40px rgba(0,0,0,.35); backdrop-filter: blur(16px); }
+.tab-context-menu button { width: 100%; border: 0; border-radius: 8px; padding: 9px 10px; color: #cbd5e1; background: transparent; text-align: left; cursor: pointer; font-size: 12px; font-weight: 700; }
+.tab-context-menu button:hover:not(:disabled) { color: #fff7ed; background: rgba(249, 115, 22, .16); }
+.tab-context-menu button:disabled { opacity: .45; cursor: not-allowed; }
 .save-bar { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
-.request-bar { display: grid; grid-template-columns: minmax(110px, 130px) minmax(0, 1fr) minmax(96px, 110px) minmax(86px, 100px) minmax(76px, 90px); gap: 12px; margin-bottom: 18px; }
+.request-bar { display: grid; grid-template-columns: 42px minmax(110px, 130px) minmax(0, 1fr) minmax(96px, 110px) minmax(86px, 100px) minmax(76px, 90px); gap: 12px; margin-bottom: 18px; }
 .save-bar select, .save-bar input, .request-bar select, .request-bar input, .body-actions select, .body-row input, .header-row input, textarea { border: 1px solid #334155; color: #f8fafc; background: #020617; border-radius: 10px; padding: 8px 12px; outline: none; font-size: 13px; }
 .save-bar button:not(.dropdown-trigger):not(.dropdown-option) { border: 0; color: white; background: #2563eb; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 13px; }
 .save-bar button:not(.dropdown-trigger):not(.dropdown-option):hover { background: #3b82f6; }
@@ -174,7 +179,7 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .save-bar input::placeholder, .modal-input::placeholder, .request-bar input::placeholder, .body-row input::placeholder, .header-row input::placeholder, textarea::placeholder { color: #94a3b8; opacity: 1; }
 .save-bar select:focus, .save-bar input:focus, .modal-input:focus, .request-bar select:focus, .request-bar input:focus, .body-actions select:focus, .body-row input:focus, .header-row input:focus, textarea:focus { border-color: #fb923c; box-shadow: 0 0 0 3px rgba(249, 115, 22, .18); }
 .toast-message { margin: -8px 0 18px auto; width: fit-content; color: #bbf7d0; background: rgba(22, 101, 52, .42); border: 1px solid #166534; padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 800; }
-.panels { display: grid; grid-template-columns: minmax(360px, .9fr) minmax(420px, 1.1fr); gap: 18px; align-items: start; }
+.panels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: 22px; padding: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.04); backdrop-filter: blur(18px); }
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2, 6, 23, .78); backdrop-filter: blur(8px); }
 .modal-card { width: min(760px, 100%); max-height: min(720px, calc(100vh - 40px)); overflow: auto; background: rgba(15, 23, 42, .92); border: 1px solid var(--border); border-radius: 24px; padding: 22px; box-shadow: 0 30px 110px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05); backdrop-filter: blur(22px); }
