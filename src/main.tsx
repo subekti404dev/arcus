@@ -1278,10 +1278,12 @@ function App() {
     } : item));
   }
 
+  const [treeDragPayload, setTreeDragPayload] = useState<{ type: 'request' | 'folder'; collectionId: string; id: string } | null>(null);
   const treeDragPayloadRef = useRef<{ type: 'request' | 'folder'; collectionId: string; id: string } | null>(null);
 
   function setTreeDragData(event: React.DragEvent, payload: { type: 'request' | 'folder'; collectionId: string; id: string }) {
     treeDragPayloadRef.current = payload;
+    setTreeDragPayload(payload);
     const raw = JSON.stringify(payload);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', raw);
@@ -1290,7 +1292,10 @@ function App() {
   }
 
   function handleTreeDragEnd() {
-    treeDragPayloadRef.current = null;
+    window.setTimeout(() => {
+      treeDragPayloadRef.current = null;
+      setTreeDragPayload(null);
+    }, 0);
   }
 
   function handleTreeDrop(event: React.DragEvent, collectionId: string, targetFolderId?: string) {
@@ -1310,6 +1315,8 @@ function App() {
     if (dragged.collectionId !== collectionId) return;
     if (dragged.type === 'request') moveRequest(collectionId, dragged.id, targetFolderId);
     if (dragged.type === 'folder') moveFolder(collectionId, dragged.id, targetFolderId);
+    treeDragPayloadRef.current = null;
+    setTreeDragPayload(null);
   }
 
   function renderSavedRequest(collection: Collection, saved: Collection['requests'][number]) {
@@ -1440,6 +1447,7 @@ function App() {
                 onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over'); }}
                 onDragLeave={(event) => event.currentTarget.classList.remove('drag-over')}
                 onDrop={(event) => { event.stopPropagation(); handleTreeDrop(event, collection.id); event.currentTarget.classList.remove('drag-over'); }}
+                onMouseUp={(event) => { if (!treeDragPayload || treeDragPayload.collectionId !== collection.id) return; event.preventDefault(); event.stopPropagation(); if (treeDragPayload.type === 'request') moveRequest(collection.id, treeDragPayload.id); if (treeDragPayload.type === 'folder') moveFolder(collection.id, treeDragPayload.id); treeDragPayloadRef.current = null; setTreeDragPayload(null); }}
               >
                 <span>{collection.name}</span>
                 <small>{collection.requests.length}</small>
@@ -1455,6 +1463,7 @@ function App() {
                   handleTreeDrop(event, collection.id);
                   event.currentTarget.classList.remove('drag-over-root');
                 }}
+                onMouseUp={(event) => { if (!treeDragPayload || treeDragPayload.collectionId !== collection.id || (event.target as HTMLElement).closest('.folder-item')) return; event.preventDefault(); event.stopPropagation(); if (treeDragPayload.type === 'request') moveRequest(collection.id, treeDragPayload.id); if (treeDragPayload.type === 'folder') moveFolder(collection.id, treeDragPayload.id); treeDragPayloadRef.current = null; setTreeDragPayload(null); }}
               >
                 {orderedFoldersForTree(collection.folders ?? []).map((folder) => {
                   const folderRequests = collection.requests.filter((saved) => saved.folderId === folder.id);
@@ -1480,6 +1489,7 @@ function App() {
                       onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over'); }}
                       onDragLeave={(event) => event.currentTarget.classList.remove('drag-over')}
                       onDrop={(event) => { event.stopPropagation(); handleTreeDrop(event, collection.id, folder.id); }}
+                      onMouseUp={(event) => { if (!treeDragPayload || treeDragPayload.collectionId !== collection.id) return; event.preventDefault(); event.stopPropagation(); if (treeDragPayload.type === 'request') moveRequest(collection.id, treeDragPayload.id, folder.id); if (treeDragPayload.type === 'folder') moveFolder(collection.id, treeDragPayload.id, folder.id); treeDragPayloadRef.current = null; setTreeDragPayload(null); }}
                       style={{ marginLeft: depth ? Math.min(depth * 10, 30) : 0 }}
                     >
                       <summary
