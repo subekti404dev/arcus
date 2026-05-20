@@ -249,6 +249,8 @@ function App() {
   const [renamingRequestId, setRenamingRequestId] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [menuState, setMenuState] = useState<{ requestId: string; collectionId: string; rect: DOMRect; name: string } | null>(null);
+  const [collectionMenuState, setCollectionMenuState] = useState<{ collectionId: string; rect: DOMRect; name: string } | null>(null);
+  const [folderMenuState, setFolderMenuState] = useState<{ collectionId: string; folderId: string; rect: DOMRect; name: string } | null>(null);
   const [deleteTargetRequest, setDeleteTargetRequest] = useState<{ collectionId: string; requestId: string; name: string } | null>(null);
   const [showClearHistoryModal, setShowClearHistoryModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1239,7 +1241,7 @@ function App() {
           </button>
         )}
         <div className="saved-request-menu">
-          <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setMenuState(menuState?.requestId === saved.id ? null : { requestId: saved.id, collectionId: collection.id, rect, name: saved.name }); }} title="More actions">⋮</button>
+          <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setMenuState(menuState?.requestId === saved.id ? null : { requestId: saved.id, collectionId: collection.id, rect, name: saved.name }); }} title="More actions"><span aria-hidden="true">•••</span></button>
         </div>
       </div>
     );
@@ -1344,8 +1346,7 @@ function App() {
               >
                 <span>{collection.name}</span>
                 <small>{collection.requests.length}</small>
-                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id); }} title="Add folder">+</button>
-                <button className="export-collection-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportCollection(collection); }} title="Export as Postman collection">↗</button>
+                <button className="menu-trigger" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCollectionMenuState(collectionMenuState?.collectionId === collection.id ? null : { collectionId: collection.id, rect, name: collection.name }); }} title="Collection actions"><span aria-hidden="true">•••</span></button>
               </summary>
               <div
                 className="saved-request-list"
@@ -1396,9 +1397,7 @@ function App() {
                       >
                         <span className="folder-name"><span className="folder-icon" aria-hidden="true" />{folder.name}</span>
                         <small>{folderRequests.length}</small>
-                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id, undefined, folder.id); }} title="Add subfolder">+</button>
-                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id, folder); }} title="Rename folder">✎</button>
-                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openDeleteFolderModal(collection.id, folder); }} title="Delete folder">×</button>
+                        <button className="menu-trigger" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setFolderMenuState(folderMenuState?.folderId === folder.id ? null : { collectionId: collection.id, folderId: folder.id, rect, name: folder.name }); }} title="Folder actions"><span aria-hidden="true">•••</span></button>
                       </summary>
                       <div className="folder-requests">
                         {folderRequests.map((saved) => renderSavedRequest(collection, saved))}
@@ -1759,6 +1758,37 @@ function App() {
         </div>
       </section>
       </div>
+
+      {collectionMenuState && (
+        <>
+          <div className="menu-backdrop" onClick={() => setCollectionMenuState(null)} />
+          <div className="menu-dropdown" style={{ position: 'fixed', top: collectionMenuState.rect.bottom + 4, right: window.innerWidth - collectionMenuState.rect.right, zIndex: 100 }}>
+            <button onClick={() => { openFolderModal(collectionMenuState.collectionId); setCollectionMenuState(null); }} title="Add folder to collection">+ Add folder</button>
+            <button onClick={() => { const collection = collections.find((item) => item.id === collectionMenuState.collectionId); if (collection) handleExportCollection(collection); setCollectionMenuState(null); }} title="Export as Postman collection">↗ Export</button>
+          </div>
+        </>
+      )}
+
+      {folderMenuState && (
+        <>
+          <div className="menu-backdrop" onClick={() => setFolderMenuState(null)} />
+          <div className="menu-dropdown" style={{ position: 'fixed', top: folderMenuState.rect.bottom + 4, right: window.innerWidth - folderMenuState.rect.right, zIndex: 100 }}>
+            <button onClick={() => { openFolderModal(folderMenuState.collectionId, undefined, folderMenuState.folderId); setFolderMenuState(null); }} title="Add subfolder">+ Add subfolder</button>
+            <button onClick={() => {
+              const collection = collections.find((item) => item.id === folderMenuState.collectionId);
+              const folder = collection?.folders?.find((item) => item.id === folderMenuState.folderId);
+              if (folder) openFolderModal(folderMenuState.collectionId, folder);
+              setFolderMenuState(null);
+            }} title="Rename folder">✎ Rename</button>
+            <button className="menu-danger" onClick={() => {
+              const collection = collections.find((item) => item.id === folderMenuState.collectionId);
+              const folder = collection?.folders?.find((item) => item.id === folderMenuState.folderId);
+              if (folder) openDeleteFolderModal(folderMenuState.collectionId, folder);
+              setFolderMenuState(null);
+            }} title="Delete folder">× Delete</button>
+          </div>
+        </>
+      )}
 
       {menuState && (
         <>
