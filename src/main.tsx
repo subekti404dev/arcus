@@ -9,6 +9,8 @@ import { loadJson, saveJson } from './storage';
 import type { AuthState, AuthType, Collection, CollectionFolder, Environment, HeaderRow, HttpMethod, QueryRow } from './types';
 import curlIcon from './assets/curl.svg';
 import importCollectionIcon from './assets/import-collection.svg';
+import codeSquareIcon from './assets/code-square.svg';
+import saveIcon from './assets/save.svg';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
 import './styles.css';
 type RequestHistory = {
@@ -1494,8 +1496,12 @@ function App() {
           />
           <input value={url} onChange={(e) => setUrlPreservingQuery(e.target.value)} onPaste={handleUrlPaste} placeholder="Enter request URL" />
           <button onClick={sendRequest} disabled={loading || !url.trim()} title="Send request">{loading ? 'Sending...' : 'Send'}</button>
-          <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button" title="Save request to collection">Save</button>
-          <button onClick={() => setShowSnippetModal(true)} disabled={!url.trim()} className="snippet-button" title="Generate code snippet">Code</button>
+          <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button" title="Save request to collection" aria-label="Save request to collection">
+            <img src={saveIcon} alt="" aria-hidden="true" />
+          </button>
+          <button onClick={() => setShowSnippetModal(true)} disabled={!url.trim()} className="snippet-button" title="Generate code snippet" aria-label="Generate code snippet">
+            <img src={codeSquareIcon} alt="" aria-hidden="true" />
+          </button>
         </div>
         <div className="panels">
           <section className="card request-card">
