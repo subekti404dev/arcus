@@ -135,7 +135,7 @@ function createBlankSnapshot(): RequestSnapshot {
     method: 'GET',
     url: '',
     headers: defaultHeaders(),
-    queryRows: [{ id: uid(), key: '', value: '', enabled: true }],
+    queryRows: [],
     body: '',
     bodyType: 'raw',
     bodyRows: defaultBodyRows(),
@@ -155,17 +155,16 @@ function tabTitle(snapshot: RequestSnapshot) {
 function App() {
   const [tabs, setTabs] = useState<RequestTab[]>(() => {
     const snapshot = createBlankSnapshot();
-    snapshot.url = 'https://jsonplaceholder.typicode.com/todos/1';
     return [{ id: uid(), title: tabTitle(snapshot), dirty: false, snapshot }];
   });
   const [activeTabId, setActiveTabId] = useState(() => tabs[0]?.id ?? '');
   const [method, setMethod] = useState<HttpMethod>('GET');
-  const [url, setUrl] = useState('https://jsonplaceholder.typicode.com/todos/1');
+  const [url, setUrl] = useState('');
   const [headers, setHeaders] = useState<HeaderRow[]>(() => defaultHeaders());
   const [body, setBody] = useState('');
   const [bodyType, setBodyType] = useState<BodyType>('raw');
   const [bodyRows, setBodyRows] = useState<BodyRow[]>(() => defaultBodyRows());
-  const [queryRows, setQueryRows] = useState<QueryRow[]>(() => [{ id: uid(), key: '', value: '', enabled: true }]);
+  const [queryRows, setQueryRows] = useState<QueryRow[]>([]);
 
   function buildQueryString(rows: QueryRow[]): string {
     const params = rows
@@ -183,7 +182,7 @@ function App() {
   function setUrlPreservingQuery(raw: string) {
     const idx = raw.indexOf('?');
     if (idx === -1) {
-      setQueryRows([{ id: uid(), key: '', value: '', enabled: true }]);
+      setQueryRows([]);
       setUrl(raw);
       return;
     }
@@ -200,7 +199,6 @@ function App() {
         if (k) newRows.push({ id: uid(), key: k, value: v, enabled: true });
       }
     }
-    if (newRows.length === 0) newRows.push({ id: uid(), key: '', value: '', enabled: true });
     setQueryRows(newRows);
     setUrl(raw);
   }
@@ -279,7 +277,7 @@ function App() {
     setMethod(snapshot.method);
     setUrl(snapshot.url);
     setHeaders(snapshot.headers);
-    setQueryRows(snapshot.queryRows.length > 0 ? snapshot.queryRows : [{ id: uid(), key: '', value: '', enabled: true }]);
+    setQueryRows(snapshot.queryRows);
     setBody(snapshot.body);
     setBodyType(snapshot.bodyType);
     setBodyRows(snapshot.bodyRows.length > 0 ? snapshot.bodyRows : defaultBodyRows());
@@ -559,7 +557,7 @@ function App() {
 
   function deleteQueryRow(id: string) {
     const next = queryRows.filter((r) => r.id !== id);
-    setUrlFromQueryRows(next.length > 0 ? next : [{ id: uid(), key: '', value: '', enabled: true }]);
+    setUrlFromQueryRows(next);
   }
 
   function setActiveTab(tabId: string) {
@@ -886,7 +884,7 @@ function App() {
 
   function toggleBulkQuery() {
     if (!bulkEditQuery) {
-      setBulkQueryRaw(queryRows.map((r) => (r.enabled ? '' : '// ') + `${r.key}: ${r.value}`).join('\n'));
+      setBulkQueryRaw(queryRows.filter((r) => r.key.trim() || r.value.trim()).map((r) => (r.enabled ? '' : '// ') + `${r.key}: ${r.value}`).join('\n'));
       setBulkEditQuery(true);
     } else {
       applyBulkQuery(bulkQueryRaw);
@@ -910,7 +908,7 @@ function App() {
       const value = content.slice(idx + 1).trim();
       if (key) rows.push({ id: uid(), key, value, enabled: !hasPrefix });
     }
-    setUrlFromQueryRows(rows.length > 0 ? rows : [{ id: uid(), key: '', value: '', enabled: true }]);
+    setUrlFromQueryRows(rows);
   }
 
   function doSaveRequest() {
@@ -957,7 +955,7 @@ function App() {
       method: saved.method,
       url: saved.url,
       headers: saved.headers,
-      queryRows: Array.isArray(saved.queryParams) && saved.queryParams.length > 0 ? saved.queryParams : [{ id: uid(), key: '', value: '', enabled: true }],
+      queryRows: Array.isArray(saved.queryParams) ? saved.queryParams : [],
       body: saved.body,
       bodyType: 'raw',
       bodyRows: defaultBodyRows(),
