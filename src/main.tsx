@@ -220,6 +220,7 @@ function App() {
   const [curlInput, setCurlInput] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const toastTimeoutRef = useRef<number | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(() => localStorage.getItem('arcus:sidebar') !== 'false');
   const [showImportModal, setShowImportModal] = useState(false);
   const [responseView, setResponseView] = useState<'preview' | 'raw' | 'headers'>('preview');
@@ -332,6 +333,24 @@ function App() {
   useEffect(() => {
     saveJson(collectionsStorageKey, collections);
   }, [collections]);
+
+  useEffect(() => {
+    if (toastTimeoutRef.current !== null) {
+      window.clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
+    if (!toastMessage) return;
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToastMessage('');
+      toastTimeoutRef.current = null;
+    }, 2600);
+    return () => {
+      if (toastTimeoutRef.current !== null) {
+        window.clearTimeout(toastTimeoutRef.current);
+        toastTimeoutRef.current = null;
+      }
+    };
+  }, [toastMessage]);
 
   useEffect(() => {
     const freshHistory = history.filter((item) => item.createdAtMs && Date.now() - item.createdAtMs <= historyRetentionMs).slice(0, 20);
@@ -1480,8 +1499,6 @@ function App() {
           <button onClick={openSaveModal} disabled={!url.trim()} className="save-request-button" title="Save request to collection">Save</button>
           <button onClick={() => setShowSnippetModal(true)} disabled={!url.trim()} className="snippet-button" title="Generate code snippet">Code</button>
         </div>
-        {toastMessage && <div className="toast-message">{toastMessage}</div>}
-
         <div className="panels">
           <section className="card request-card">
             <h2>Request</h2>
@@ -1757,6 +1774,8 @@ function App() {
         </div>
       </section>
       </div>
+
+      {toastMessage && <div className="toast-message" role="status" aria-live="polite">{toastMessage}</div>}
 
       {collectionMenuState && (
         <>
