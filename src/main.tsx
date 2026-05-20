@@ -744,6 +744,26 @@ function App() {
     return names.join(' / ');
   }
 
+  function orderedFoldersForTree(folders: CollectionFolder[]) {
+    const folderIds = new Set(folders.map((folder) => folder.id));
+    const ordered: CollectionFolder[] = [];
+    const appendChildren = (parentId?: string) => {
+      folders
+        .filter((folder) => (folder.parentId || '') === (parentId || ''))
+        .forEach((folder) => {
+          ordered.push(folder);
+          appendChildren(folder.id);
+        });
+    };
+    folders
+      .filter((folder) => !folder.parentId || !folderIds.has(folder.parentId))
+      .forEach((folder) => {
+        ordered.push(folder);
+        appendChildren(folder.id);
+      });
+    return ordered;
+  }
+
   const saveModalRequests = useMemo(() => {
     return (saveModalCollection?.requests ?? []).filter((request) => (request.folderId ?? '') === saveModalFolderId);
   }, [saveModalCollection, saveModalFolderId]);
@@ -1149,6 +1169,48 @@ function App() {
     }
   }
 
+  function moveRequest(collectionId: string, requestId: string, folderId?: string) {
+    const now = new Date().toISOString();
+    setCollections((items) => items.map((collection) => collection.id === collectionId ? {
+      ...collection,
+      updatedAt: now,
+      requests: collection.requests.map((request) => request.id === requestId ? { ...request, folderId, updatedAt: now } : request),
+    } : collection));
+  }
+
+  function moveFolder(collectionId: string, folderId: string, parentId?: string) {
+    if (folderId === parentId) return;
+    const collection = collections.find((item) => item.id === collectionId);
+    const folders = collection?.folders ?? [];
+    let nextParent = parentId;
+    while (nextParent) {
+      if (nextParent === folderId) return;
+      nextParent = folders.find((folder) => folder.id === nextParent)?.parentId;
+    }
+    const now = new Date().toISOString();
+    setCollections((items) => items.map((item) => item.id === collectionId ? {
+      ...item,
+      updatedAt: now,
+      folders: (item.folders ?? []).map((folder) => folder.id === folderId ? { ...folder, parentId, updatedAt: now } : folder),
+    } : item));
+  }
+
+  function handleTreeDrop(event: React.DragEvent, collectionId: string, targetFolderId?: string) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    const raw = event.dataTransfer.getData('application/arcus-tree-item') || event.dataTransfer.getData('text/plain');
+    if (!raw) return;
+    let dragged: { type: 'request' | 'folder'; collectionId: string; id: string };
+    try {
+      dragged = JSON.parse(raw) as { type: 'request' | 'folder'; collectionId: string; id: string };
+    } catch {
+      return;
+    }
+    if (dragged.collectionId !== collectionId) return;
+    if (dragged.type === 'request') moveRequest(collectionId, dragged.id, targetFolderId);
+    if (dragged.type === 'folder') moveFolder(collectionId, dragged.id, targetFolderId);
+  }
+
   function renderSavedRequest(collection: Collection, saved: Collection['requests'][number]) {
     return (
       <div className="saved-request" key={saved.id}>
@@ -1159,7 +1221,19 @@ function App() {
             <button onClick={() => setRenamingRequestId('')} title="Cancel rename">×</button>
           </div>
         ) : (
-          <button className={activeSavedRequestId === saved.id ? 'active' : ''} onClick={() => loadSavedRequest(collection.id, saved.id, true)} title="Open request">
+          <button
+            className={activeSavedRequestId === saved.id ? 'active' : ''}
+            draggable
+            onDragStart={(event) => {
+              event.stopPropagation();
+              const payload = JSON.stringify({ type: 'request', collectionId: collection.id, id: saved.id });
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('application/arcus-tree-item', payload);
+              event.dataTransfer.setData('text/plain', payload);
+            }}
+            onClick={() => loadSavedRequest(collection.id, saved.id, true)}
+            title="Open request / drag to move"
+          >
             <strong className={methodColorClass(saved.method)}>{saved.method}</strong>
             <span>{saved.name}</span>
           </button>
@@ -1262,14 +1336,29 @@ function App() {
         <div className="collection-list">
           {filteredCollections.map((collection) => (
             <details className="collection-item" key={collection.id} open={selectedCollectionId === collection.id} onToggle={(event) => { if (event.currentTarget.open) setSelectedCollectionId(collection.id); }}>
-              <summary>
+              <summary
+                onDragEnter={(event) => { event.preventDefault(); event.currentTarget.classList.add('drag-over'); }}
+                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over'); }}
+                onDragLeave={(event) => event.currentTarget.classList.remove('drag-over')}
+                onDrop={(event) => { event.stopPropagation(); handleTreeDrop(event, collection.id); event.currentTarget.classList.remove('drag-over'); }}
+              >
                 <span>{collection.name}</span>
                 <small>{collection.requests.length}</small>
+                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id); }} title="Add folder">+</button>
                 <button className="export-collection-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportCollection(collection); }} title="Export as Postman collection">↗</button>
               </summary>
-              <div className="saved-request-list">
-                <button className="folder-action" onClick={() => openFolderModal(collection.id)} title="Create folder in this collection">+ New folder</button>
-                {(collection.folders ?? []).map((folder) => {
+              <div
+                className="saved-request-list"
+                onDragEnter={(event) => { event.preventDefault(); event.currentTarget.classList.add('drag-over-root'); }}
+                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over-root'); }}
+                onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.classList.remove('drag-over-root'); }}
+                onDrop={(event) => {
+                  if ((event.target as HTMLElement).closest('.folder-item')) return;
+                  handleTreeDrop(event, collection.id);
+                  event.currentTarget.classList.remove('drag-over-root');
+                }}
+              >
+                {orderedFoldersForTree(collection.folders ?? []).map((folder) => {
                   const folderRequests = collection.requests.filter((saved) => saved.folderId === folder.id);
                   const depth = (() => {
                     let level = 0;
@@ -1285,9 +1374,27 @@ function App() {
                     return level;
                   })();
                   return (
-                    <details className="folder-item" key={folder.id} open style={{ marginLeft: depth ? Math.min(depth * 10, 30) : 0 }}>
-                      <summary>
-                        <span>{folder.name}</span>
+                    <details
+                      className="folder-item"
+                      key={folder.id}
+                      open
+                      onDragEnter={(event) => { event.preventDefault(); event.currentTarget.classList.add('drag-over'); }}
+                      onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over'); }}
+                      onDragLeave={(event) => event.currentTarget.classList.remove('drag-over')}
+                      onDrop={(event) => { event.stopPropagation(); handleTreeDrop(event, collection.id, folder.id); }}
+                      style={{ marginLeft: depth ? Math.min(depth * 10, 30) : 0 }}
+                    >
+                      <summary
+                        draggable
+                        onDragStart={(event) => {
+                          event.stopPropagation();
+                          const payload = JSON.stringify({ type: 'folder', collectionId: collection.id, id: folder.id });
+                          event.dataTransfer.effectAllowed = 'move';
+                          event.dataTransfer.setData('application/arcus-tree-item', payload);
+                          event.dataTransfer.setData('text/plain', payload);
+                        }}
+                      >
+                        <span className="folder-name"><span className="folder-icon" aria-hidden="true" />{folder.name}</span>
                         <small>{folderRequests.length}</small>
                         <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id, undefined, folder.id); }} title="Add subfolder">+</button>
                         <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openFolderModal(collection.id, folder); }} title="Rename folder">✎</button>
