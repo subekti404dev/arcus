@@ -16,6 +16,7 @@
 * { box-sizing: border-box; }
 html { min-width: 320px; }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; }
+[draggable="true"] { -webkit-user-drag: element; }
 button, input, select, textarea { font: inherit; }
 button { transition: transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease; }
 button:active { transform: translateY(1px) scale(.99); }

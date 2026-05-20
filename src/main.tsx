@@ -1216,10 +1216,18 @@ function App() {
     } : item));
   }
 
+  function setTreeDragData(event: React.DragEvent, payload: { type: 'request' | 'folder'; collectionId: string; id: string }) {
+    const raw = JSON.stringify(payload);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', raw);
+    event.dataTransfer.setData('application/json', raw);
+    event.dataTransfer.setData('application/arcus-tree-item', raw);
+  }
+
   function handleTreeDrop(event: React.DragEvent, collectionId: string, targetFolderId?: string) {
     event.preventDefault();
     event.currentTarget.classList.remove('drag-over');
-    const raw = event.dataTransfer.getData('application/arcus-tree-item') || event.dataTransfer.getData('text/plain');
+    const raw = event.dataTransfer.getData('text/plain') || event.dataTransfer.getData('application/json') || event.dataTransfer.getData('application/arcus-tree-item');
     if (!raw) return;
     let dragged: { type: 'request' | 'folder'; collectionId: string; id: string };
     try {
@@ -1247,10 +1255,7 @@ function App() {
             draggable
             onDragStart={(event) => {
               event.stopPropagation();
-              const payload = JSON.stringify({ type: 'request', collectionId: collection.id, id: saved.id });
-              event.dataTransfer.effectAllowed = 'move';
-              event.dataTransfer.setData('application/arcus-tree-item', payload);
-              event.dataTransfer.setData('text/plain', payload);
+              setTreeDragData(event, { type: 'request', collectionId: collection.id, id: saved.id });
             }}
             onClick={() => loadSavedRequest(collection.id, saved.id, true)}
             title="Open request / drag to move"
@@ -1408,10 +1413,7 @@ function App() {
                         draggable
                         onDragStart={(event) => {
                           event.stopPropagation();
-                          const payload = JSON.stringify({ type: 'folder', collectionId: collection.id, id: folder.id });
-                          event.dataTransfer.effectAllowed = 'move';
-                          event.dataTransfer.setData('application/arcus-tree-item', payload);
-                          event.dataTransfer.setData('text/plain', payload);
+                          setTreeDragData(event, { type: 'folder', collectionId: collection.id, id: folder.id });
                         }}
                       >
                         <span className="folder-name"><span className="folder-icon" aria-hidden="true" />{folder.name}</span>
