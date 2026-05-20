@@ -49,7 +49,7 @@ button:active { transform: translateY(1px) scale(.99); }
 .save-request-button { background: #475569 !important; }
 .save-request-button:hover { background: #64748b !important; }
 h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12px; letter-spacing: .12em; }
-.collections-header { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
+.collections-header { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
 .collections-header h3 { margin: 0; }
 .collections-actions { display: flex; align-items: center; gap: 6px; }
 .collections-header button { width: 30px; height: 30px; border: 1px solid #334155; color: #fed7aa; background: #1e293b; border-radius: 9px; cursor: pointer; font-weight: 900; display: grid; place-items: center; }
