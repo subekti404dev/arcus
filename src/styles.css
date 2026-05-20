@@ -68,9 +68,20 @@ h3 { margin-top: 28px; color: #94a3b8; text-transform: uppercase; font-size: 12p
 .env-edit-btn { border: 0; color: #64748b; background: transparent; cursor: pointer; font-size: 11px; padding: 0; line-height: 1; }
 .env-edit-btn:hover { color: #cbd5e1; }
 .env-vars-table { margin-bottom: 8px; }
+.env-vars-title { margin-top: 4px; }
+.env-bulk-editor { margin-bottom: 8px; }
+.env-modal .import-header { margin-bottom: 0; }
+.env-name-input { margin: 20px 0 16px; border-radius: 10px; padding: 8px 12px; font-size: 13px; line-height: 1.4; height: 37px; }
 
 /* ── Save Modal ── */
-.save-modal-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.save-modal-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0 16px; }
+.save-request-modal .import-header { margin-bottom: 0; }
+.save-request-name-input { margin-top: 12px; border-radius: 10px; padding: 8px 12px; font-size: 13px; line-height: 1.4; height: 37px; }
+.folder-modal .import-header { margin-bottom: 0; }
+.folder-parent-picker { margin-top: 20px; }
+.folder-name-input { margin-top: 12px; border-radius: 10px; padding: 8px 12px; font-size: 13px; line-height: 1.4; height: 37px; }
+.add-collection-modal .import-header { margin-bottom: 0; }
+.collection-name-input { margin-top: 20px; border-radius: 10px; padding: 8px 12px; font-size: 13px; line-height: 1.4; height: 37px; }
 .save-modal-requests { max-height: 200px; overflow-y: auto; border: 1px solid #1e293b; border-radius: 10px; }
 .save-modal-request-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; color: #cbd5e1; background: transparent; padding: 8px 12px; cursor: pointer; font-family: inherit; font-size: 13px; }
 .save-modal-request-item + .save-modal-request-item { border-top: 1px solid #1e293b; }

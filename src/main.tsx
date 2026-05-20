@@ -234,12 +234,15 @@ function App() {
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [editingEnvId, setEditingEnvId] = useState<string>('');
   const [envName, setEnvName] = useState('');
-  const [envVars, setEnvVars] = useState<{ key: string; value: string; enabled: boolean }[]>([{ key: '', value: '', enabled: true }]);
+  const [envVars, setEnvVars] = useState<{ key: string; value: string; enabled: boolean }[]>([]);
+  const [bulkEditEnvVars, setBulkEditEnvVars] = useState(false);
+  const [bulkEnvVarsRaw, setBulkEnvVarsRaw] = useState('');
   const [selectedCollectionId, setSelectedCollectionId] = useState(''); // sidebar selection only
   const [requestName, setRequestName] = useState('');
   const [activeSavedRequestId, setActiveSavedRequestId] = useState('');
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
+  const [editingCollectionId, setEditingCollectionId] = useState('');
   const [deleteTargetCollectionId, setDeleteTargetCollectionId] = useState('');
   const [folderModalCollectionId, setFolderModalCollectionId] = useState('');
   const [folderModalParentId, setFolderModalParentId] = useState('');
@@ -637,13 +640,29 @@ function App() {
     setTabMenu({ tabId, x: event.clientX, y: event.clientY });
   }
 
-  function createCollection() {
+  function openCollectionModal(collection?: Collection) {
+    if (collection) {
+      setEditingCollectionId(collection.id);
+      setNewCollectionName(collection.name);
+    } else {
+      setEditingCollectionId('');
+      setNewCollectionName('');
+    }
+    setShowCollectionModal(true);
+  }
+
+  function saveCollection() {
     if (!newCollectionName.trim()) return;
     const now = new Date().toISOString();
-    const collection: Collection = { id: uid(), name: newCollectionName.trim(), requests: [], createdAt: now, updatedAt: now };
-    setCollections((items) => [collection, ...items]);
-    setSelectedCollectionId(collection.id);
+    if (editingCollectionId) {
+      setCollections((items) => items.map((collection) => collection.id === editingCollectionId ? { ...collection, name: newCollectionName.trim(), updatedAt: now } : collection));
+    } else {
+      const collection: Collection = { id: uid(), name: newCollectionName.trim(), requests: [], createdAt: now, updatedAt: now };
+      setCollections((items) => [collection, ...items]);
+      setSelectedCollectionId(collection.id);
+    }
     setNewCollectionName('');
+    setEditingCollectionId('');
     setShowCollectionModal(false);
   }
 
@@ -651,11 +670,15 @@ function App() {
     if (env) {
       setEditingEnvId(env.id);
       setEnvName(env.name);
-      setEnvVars(env.variables.length > 0 ? env.variables : [{ key: '', value: '', enabled: true }]);
+      setEnvVars(env.variables);
+      setBulkEditEnvVars(false);
+      setBulkEnvVarsRaw('');
     } else {
       setEditingEnvId('');
       setEnvName('');
-      setEnvVars([{ key: '', value: '', enabled: true }]);
+      setEnvVars([]);
+      setBulkEditEnvVars(false);
+      setBulkEnvVarsRaw('');
     }
     setShowEnvEditor(true);
   }
@@ -857,6 +880,45 @@ function App() {
         applyBulkQuery(text);
       });
     }
+  }
+
+  function handleBulkEnvVarsKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+      e.preventDefault();
+      handleBulkCommentToggle(bulkEnvVarsRaw, e.currentTarget, (text) => {
+        setBulkEnvVarsRaw(text);
+        applyBulkEnvVars(text);
+      });
+    }
+  }
+
+  function toggleBulkEnvVars() {
+    if (!bulkEditEnvVars) {
+      setBulkEnvVarsRaw(envVars.filter((v) => v.key.trim() || v.value.trim()).map((v) => (v.enabled ? '' : '// ') + `${v.key}: ${v.value}`).join('\n'));
+      setBulkEditEnvVars(true);
+    } else {
+      applyBulkEnvVars(bulkEnvVarsRaw);
+      setBulkEditEnvVars(false);
+    }
+  }
+
+  function handleBulkEnvVarsChange(text: string) {
+    setBulkEnvVarsRaw(text);
+    applyBulkEnvVars(text);
+  }
+
+  function applyBulkEnvVars(text: string) {
+    const parsed: { key: string; value: string; enabled: boolean }[] = [];
+    for (const line of text.split('\n')) {
+      const hasPrefix = line.trimStart().startsWith('//');
+      const content = hasPrefix ? line.trimStart().slice(2) : line;
+      const idx = content.indexOf(':');
+      if (idx === -1) continue;
+      const key = content.slice(0, idx).trim();
+      const value = content.slice(idx + 1).trim();
+      if (key) parsed.push({ key, value, enabled: !hasPrefix });
+    }
+    setEnvVars(parsed);
   }
 
   function applyBulkHeaders(text: string) {
@@ -1351,7 +1413,7 @@ function App() {
             <button onClick={() => fileInputRef.current?.click()} title="Import collection" aria-label="Import collection">
               <img src={importCollectionIcon} alt="" aria-hidden="true" />
             </button>
-            <button onClick={() => setShowCollectionModal(true)} title="New collection">+</button>
+            <button onClick={() => openCollectionModal()} title="New collection">+</button>
           </div>
         </div>
         {collections.length > 0 && (
@@ -1787,6 +1849,7 @@ function App() {
         <>
           <div className="menu-backdrop" onClick={() => setCollectionMenuState(null)} />
           <div className="menu-dropdown" style={{ position: 'fixed', top: collectionMenuState.rect.bottom + 4, right: window.innerWidth - collectionMenuState.rect.right, zIndex: 100 }}>
+            <button onClick={() => { const collection = collections.find((item) => item.id === collectionMenuState.collectionId); if (collection) openCollectionModal(collection); setCollectionMenuState(null); }} title="Rename collection">✎ Rename</button>
             <button onClick={() => { openFolderModal(collectionMenuState.collectionId); setCollectionMenuState(null); }} title="Add folder to collection">+ Add folder</button>
             <button onClick={() => { const collection = collections.find((item) => item.id === collectionMenuState.collectionId); if (collection) handleExportCollection(collection); setCollectionMenuState(null); }} title="Export as Postman collection">↗ Export</button>
             <button className="menu-danger" onClick={() => { openDeleteCollectionModal(collectionMenuState.collectionId); setCollectionMenuState(null); }} title="Delete collection">× Delete</button>
@@ -1855,19 +1918,19 @@ function App() {
       )}
 
       {showCollectionModal && (
-        <div className="modal-backdrop" onClick={() => setShowCollectionModal(false)}>
-          <section className="modal-card compact-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-collection-title">
+        <div className="modal-backdrop" onClick={() => { setShowCollectionModal(false); setEditingCollectionId(''); setNewCollectionName(''); }}>
+          <section className="modal-card compact-modal add-collection-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-collection-title">
             <div className="import-header">
               <div>
-                <h2 id="add-collection-title">Add Collection</h2>
-                <p>Create a folder to organize saved API requests.</p>
+                <h2 id="add-collection-title">{editingCollectionId ? 'Rename Collection' : 'Add Collection'}</h2>
+                <p>{editingCollectionId ? 'Update the collection name.' : 'Create a folder to organize saved API requests.'}</p>
               </div>
-              <button className="close-button" onClick={() => setShowCollectionModal(false)} aria-label="Close add collection modal">×</button>
+              <button className="close-button" onClick={() => { setShowCollectionModal(false); setEditingCollectionId(''); setNewCollectionName(''); }} aria-label="Close add collection modal">×</button>
             </div>
-            <input className="modal-input" value={newCollectionName} onChange={(event) => setNewCollectionName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') createCollection(); }} placeholder="Collection name" autoFocus />
+            <input className="modal-input collection-name-input" value={newCollectionName} onChange={(event) => setNewCollectionName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') saveCollection(); }} placeholder="Collection name" autoFocus />
             <div className="modal-actions">
-              <button className="ghost-action" onClick={() => { setNewCollectionName(''); setShowCollectionModal(false); }} title="Cancel">Cancel</button>
-              <button className="secondary-button" onClick={createCollection} disabled={!newCollectionName.trim()} title="Create collection">Create</button>
+              <button className="ghost-action" onClick={() => { setNewCollectionName(''); setEditingCollectionId(''); setShowCollectionModal(false); }} title="Cancel">Cancel</button>
+              <button className="secondary-button" onClick={saveCollection} disabled={!newCollectionName.trim()} title={editingCollectionId ? 'Rename collection' : 'Create collection'}>{editingCollectionId ? 'Rename' : 'Create'}</button>
             </div>
           </section>
         </div>
@@ -1918,7 +1981,7 @@ function App() {
 
       {folderModalCollectionId && (
         <div className="modal-backdrop" onClick={() => setFolderModalCollectionId('')}>
-          <section className="modal-card compact-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="folder-modal-title">
+          <section className="modal-card compact-modal folder-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="folder-modal-title">
             <div className="import-header">
               <div>
                 <h2 id="folder-modal-title">{editingFolderId ? 'Rename Folder' : 'New Folder'}</h2>
@@ -1927,6 +1990,7 @@ function App() {
               <button className="close-button" onClick={() => setFolderModalCollectionId('')} aria-label="Close folder modal">×</button>
             </div>
             <Dropdown
+              className="folder-parent-picker"
               value={folderModalParentId}
               onChange={setFolderModalParentId}
               options={[
@@ -1936,7 +2000,7 @@ function App() {
                   .map((folder) => ({ value: folder.id, label: folderDisplayName(folder, collections.find((collection) => collection.id === folderModalCollectionId)?.folders ?? []) }))),
               ]}
             />
-            <input className="modal-input" value={folderModalName} onChange={(event) => setFolderModalName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') saveFolder(); }} placeholder="Folder name" autoFocus />
+            <input className="modal-input folder-name-input" value={folderModalName} onChange={(event) => setFolderModalName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') saveFolder(); }} placeholder="Folder name" autoFocus />
             <div className="modal-actions" style={{ marginTop: 18 }}>
               <button className="ghost-action" onClick={() => setFolderModalCollectionId('')} title="Cancel">Cancel</button>
               <button className="secondary-button" onClick={saveFolder} disabled={!folderModalName.trim()} title={editingFolderId ? 'Rename folder' : 'Create folder'}>{editingFolderId ? 'Rename' : 'Create'}</button>
@@ -1987,7 +2051,7 @@ function App() {
 
       {showSaveModal && (
         <div className="modal-backdrop" onClick={() => setShowSaveModal(false)}>
-          <section className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="save-modal-title">
+          <section className="modal-card save-request-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="save-modal-title">
             <div className="import-header">
               <div>
                 <h2 id="save-modal-title">Save Request</h2>
@@ -2023,12 +2087,11 @@ function App() {
               </div>
             )}
             <input
-              className="modal-input"
+              className="modal-input save-request-name-input"
               value={saveModalNewName}
               onChange={(e) => { setSaveModalNewName(e.target.value); setSaveModalSelectedRequestId(''); }}
               placeholder="Request name"
               onKeyDown={(e) => { if (e.key === 'Enter') doSaveRequest(); }}
-              style={{ marginTop: 12 }}
             />
             <div className="modal-actions" style={{ marginTop: 18 }}>
               <button className="ghost-action" onClick={() => setShowSaveModal(false)} title="Cancel">Cancel</button>
@@ -2070,18 +2133,46 @@ function App() {
               </div>
               <button className="close-button" onClick={() => setShowEnvEditor(false)} aria-label="Close environment editor">×</button>
             </div>
-            <input className="modal-input" value={envName} onChange={(e) => setEnvName(e.target.value)} placeholder="Environment name (e.g. Development, Production)" style={{ marginBottom: 16 }} autoFocus />
-            <div className="env-vars-table">
-              {envVars.map((v, i) => (
-                <div className="header-row" key={i}>
-                  <input type="checkbox" checked={v.enabled} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], enabled: e.target.checked }; setEnvVars(next); }} />
-                  <input value={v.key} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], key: e.target.value }; setEnvVars(next); }} placeholder="VAR_NAME" />
-                  <input value={v.value} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], value: e.target.value }; setEnvVars(next); }} placeholder="value" />
-                  <button className="ghost" onClick={() => setEnvVars((prev) => prev.filter((_, j) => j !== i))} title="Remove variable">×</button>
-                </div>
-              ))}
+            <input className="modal-input env-name-input" value={envName} onChange={(e) => setEnvName(e.target.value)} placeholder="Environment name (e.g. Development, Production)" autoFocus />
+            <div className="section-title env-vars-title">
+              Variables
+              <button className="bulk-edit-toggle" onClick={toggleBulkEnvVars} title="Switch environment variables editor mode">
+                {bulkEditEnvVars ? 'Key-Value' : 'Bulk Edit'}
+              </button>
             </div>
-            <button className="link-button" onClick={() => setEnvVars((prev) => [...prev, { key: '', value: '', enabled: true }])} title="Add environment variable">+ Add variable</button>
+            {bulkEditEnvVars ? (
+              <div className="bulk-headers-editor env-bulk-editor">
+                <div className="bulk-line-numbers" ref={(el) => { if (el) el.scrollTop = el.parentElement?.querySelector('textarea')?.scrollTop ?? 0; }}>{bulkEnvVarsRaw.split('\n').map((_, i) => <span key={i}>{i + 1}</span>)}</div>
+                <textarea
+                  className="bulk-headers-input"
+                  value={bulkEnvVarsRaw}
+                  onKeyDown={handleBulkEnvVarsKeyDown}
+                  onScroll={(e) => { (e.currentTarget.previousElementSibling as HTMLElement).scrollTop = e.currentTarget.scrollTop; }}
+                  onChange={(e) => handleBulkEnvVarsChange(e.target.value)}
+                  placeholder="API_URL: https://api.example.com&#10;TOKEN: secret"
+                />
+              </div>
+            ) : (
+              <>
+                <div className="env-vars-table spreadsheet-table">
+                  <div className="spreadsheet-head">
+                    <span />
+                    <span>Key</span>
+                    <span>Value</span>
+                    <span />
+                  </div>
+                  {envVars.map((v, i) => (
+                    <div className="header-row spreadsheet-row" key={i}>
+                      <label className="sheet-check"><input type="checkbox" checked={v.enabled} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], enabled: e.target.checked }; setEnvVars(next); }} /></label>
+                      <input value={v.key} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], key: e.target.value }; setEnvVars(next); }} placeholder="VAR_NAME" />
+                      <input value={v.value} onChange={(e) => { const next = [...envVars]; next[i] = { ...next[i], value: e.target.value }; setEnvVars(next); }} placeholder="value" />
+                      <button className="ghost" onClick={() => setEnvVars((prev) => prev.filter((_, j) => j !== i))} title="Remove variable">×</button>
+                    </div>
+                  ))}
+                </div>
+                <button className="link-button" onClick={() => setEnvVars((prev) => [...prev, { key: '', value: '', enabled: true }])} title="Add environment variable">+ Add variable</button>
+              </>
+            )}
             <div className="modal-actions" style={{ marginTop: 18 }}>
               <button className="ghost-action" onClick={() => setShowEnvEditor(false)} title="Cancel">Cancel</button>
               {editingEnvId && <button className="danger-action" onClick={() => deleteEnvironment(editingEnvId)} style={{ marginRight: 'auto' }} title="Delete environment">Delete</button>}
