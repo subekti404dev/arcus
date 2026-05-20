@@ -1408,7 +1408,6 @@ function App() {
                 })}
                 {collection.requests.filter((saved) => !saved.folderId).map((saved) => renderSavedRequest(collection, saved))}
                 {collection.requests.length === 0 && <p className="muted small">No saved requests.</p>}
-                <button className="delete-collection" onClick={() => openDeleteCollectionModal(collection.id)} title="Delete this collection">Delete collection</button>
               </div>
             </details>
           ))}
@@ -1765,6 +1764,7 @@ function App() {
           <div className="menu-dropdown" style={{ position: 'fixed', top: collectionMenuState.rect.bottom + 4, right: window.innerWidth - collectionMenuState.rect.right, zIndex: 100 }}>
             <button onClick={() => { openFolderModal(collectionMenuState.collectionId); setCollectionMenuState(null); }} title="Add folder to collection">+ Add folder</button>
             <button onClick={() => { const collection = collections.find((item) => item.id === collectionMenuState.collectionId); if (collection) handleExportCollection(collection); setCollectionMenuState(null); }} title="Export as Postman collection">↗ Export</button>
+            <button className="menu-danger" onClick={() => { openDeleteCollectionModal(collectionMenuState.collectionId); setCollectionMenuState(null); }} title="Delete collection">× Delete</button>
           </div>
         </>
       )}
