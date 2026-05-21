@@ -1,4 +1,6 @@
 import React, { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { DndContext, DragOverlay, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { createRoot } from 'react-dom/client';
 import { parseCurl } from './curl';
 import { sendNativeHttpRequest } from './http';
@@ -13,6 +15,31 @@ import codeSquareIcon from './assets/code-square.svg';
 import saveIcon from './assets/save.svg';
 import { closeWindow, minimizeWindow, toggleMaximizeWindow } from './windowControls';
 import './styles.css';
+type TreeDragData = { type: 'request' | 'folder'; collectionId: string; id: string };
+type TreeDropData = { type: 'root' | 'folder'; collectionId: string; folderId?: string };
+
+function DraggableTreeButton({ payload, className, onClick, title, children }: { payload: TreeDragData; className?: string; onClick?: () => void; title: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `tree-${payload.type}-${payload.id}`, data: payload });
+  return (
+    <button
+      ref={setNodeRef}
+      className={className}
+      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.55 : undefined }}
+      {...listeners}
+      {...attributes}
+      onClick={onClick}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TreeDropZone({ drop, className, children }: { drop: TreeDropData; className?: string; children?: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `drop-${drop.collectionId}-${drop.folderId ?? 'root'}`, data: drop });
+  return <div ref={setNodeRef} className={`${className ?? ''}${isOver ? ' drag-over-root' : ''}`}>{children}</div>;
+}
+
 type RequestHistory = {
   id: string;
   method: HttpMethod;
@@ -1278,94 +1305,17 @@ function App() {
     } : item));
   }
 
-  const [treeDragPayload, setTreeDragPayload] = useState<{ type: 'request' | 'folder'; collectionId: string; id: string } | null>(null);
-  const treeDragPayloadRef = useRef<{ type: 'request' | 'folder'; collectionId: string; id: string } | null>(null);
-  const treeDragMovedRef = useRef(false);
-  const [pointerDragPayload, setPointerDragPayload] = useState<{ type: 'request' | 'folder'; collectionId: string; id: string; x: number; y: number } | null>(null);
-  const pointerDragPayloadRef = useRef<{ type: 'request' | 'folder'; collectionId: string; id: string; x: number; y: number } | null>(null);
+  const [activeTreeDrag, setActiveTreeDrag] = useState<TreeDragData | null>(null);
+  const treeSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
-  function clearTreeDragPayload() {
-    treeDragPayloadRef.current = null;
-    treeDragMovedRef.current = false;
-    setTreeDragPayload(null);
-  }
-
-  function moveTreeDragPayload(collectionId: string, targetFolderId?: string) {
-    const dragged = treeDragPayloadRef.current;
-    if (!dragged || dragged.collectionId !== collectionId || treeDragMovedRef.current) return;
-    treeDragMovedRef.current = true;
-    if (dragged.type === 'request') moveRequest(collectionId, dragged.id, targetFolderId);
-    if (dragged.type === 'folder') moveFolder(collectionId, dragged.id, targetFolderId);
-    window.setTimeout(clearTreeDragPayload, 0);
-  }
-
-  function setPointerTreePayload(payload: { type: 'request' | 'folder'; collectionId: string; id: string }) {
-    treeDragPayloadRef.current = payload;
-    treeDragMovedRef.current = false;
-    setTreeDragPayload(payload);
-  }
-
-  function startPointerTreeDrag(event: React.PointerEvent, payload: { type: 'request' | 'folder'; collectionId: string; id: string }) {
-    if (event.button !== 0) return;
-    const next = { ...payload, x: event.clientX, y: event.clientY };
-    pointerDragPayloadRef.current = next;
-    setPointerDragPayload(next);
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-  }
-
-  function handlePointerTreeDragMove(event: React.PointerEvent) {
-    if (!pointerDragPayloadRef.current) return;
-    const next = { ...pointerDragPayloadRef.current, x: event.clientX, y: event.clientY };
-    pointerDragPayloadRef.current = next;
-    setPointerDragPayload(next);
-  }
-
-  function handlePointerTreeDragEnd(event: React.PointerEvent) {
-    const dragged = pointerDragPayloadRef.current;
-    if (!dragged) return;
-    const dropTarget = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-    const target = dropTarget?.closest('[data-tree-drop]') as HTMLElement | null;
-    if (target && target.dataset.collectionId === dragged.collectionId) {
-      moveTreeDragPayload(target.dataset.collectionId, target.dataset.folderId || undefined);
-    }
-    pointerDragPayloadRef.current = null;
-    setPointerDragPayload(null);
-    clearTreeDragPayload();
-  }
-
-  function setTreeDragData(event: React.DragEvent, payload: { type: 'request' | 'folder'; collectionId: string; id: string }) {
-    treeDragPayloadRef.current = payload;
-    treeDragMovedRef.current = false;
-    setTreeDragPayload(payload);
-    const raw = JSON.stringify(payload);
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', raw);
-    event.dataTransfer.setData('application/json', raw);
-    event.dataTransfer.setData('application/arcus-tree-item', raw);
-  }
-
-  function handleTreeDragEnd() {
-    window.setTimeout(() => {
-      if (!treeDragMovedRef.current) clearTreeDragPayload();
-    }, 120);
-  }
-
-  function handleTreeDrop(event: React.DragEvent, collectionId: string, targetFolderId?: string) {
-    event.preventDefault();
-    event.currentTarget.classList.remove('drag-over');
-    const raw = event.dataTransfer.getData('text/plain') || event.dataTransfer.getData('application/json') || event.dataTransfer.getData('application/arcus-tree-item');
-    let dragged = treeDragPayloadRef.current;
-    if (raw) {
-      try {
-        dragged = JSON.parse(raw) as { type: 'request' | 'folder'; collectionId: string; id: string };
-      } catch {
-        // macOS WKWebView can drop empty/unreadable DataTransfer data in production builds.
-        // Fall back to the in-memory payload captured at drag start.
-      }
-    }
-    if (!dragged) return;
-    if (dragged.collectionId !== collectionId) return;
-    moveTreeDragPayload(collectionId, targetFolderId);
+  function handleTreeDragEnd(event: DragEndEvent) {
+    const dragged = event.active.data.current as TreeDragData | undefined;
+    const target = event.over?.data.current as TreeDropData | undefined;
+    setActiveTreeDrag(null);
+    if (!dragged || !target || dragged.collectionId !== target.collectionId) return;
+    const targetFolderId = target.type === 'folder' ? target.folderId : undefined;
+    if (dragged.type === 'request') moveRequest(target.collectionId, dragged.id, targetFolderId);
+    if (dragged.type === 'folder') moveFolder(target.collectionId, dragged.id, targetFolderId);
   }
 
   function renderSavedRequest(collection: Collection, saved: Collection['requests'][number]) {
@@ -1378,27 +1328,18 @@ function App() {
             <button onClick={() => setRenamingRequestId('')} title="Cancel rename">×</button>
           </div>
         ) : (
-          <button
+          <DraggableTreeButton
+            payload={{ type: 'request', collectionId: collection.id, id: saved.id }}
             className={activeSavedRequestId === saved.id ? 'active' : ''}
-            draggable
-            onPointerDown={(event) => { const payload = { type: 'request' as const, collectionId: collection.id, id: saved.id }; setPointerTreePayload(payload); startPointerTreeDrag(event, payload); }}
-            onPointerMove={handlePointerTreeDragMove}
-            onPointerUp={handlePointerTreeDragEnd}
-            onPointerCancel={handlePointerTreeDragEnd}
-            onDragStart={(event) => {
-              event.stopPropagation();
-              setTreeDragData(event, { type: 'request', collectionId: collection.id, id: saved.id });
-            }}
-            onDragEnd={handleTreeDragEnd}
             onClick={() => loadSavedRequest(collection.id, saved.id, true)}
             title="Open request / drag to move"
           >
             <strong className={methodColorClass(saved.method)}>{saved.method}</strong>
             <span>{saved.name}</span>
-          </button>
+          </DraggableTreeButton>
         )}
         <div className="saved-request-menu">
-          <button className="menu-trigger" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setMenuState(menuState?.requestId === saved.id ? null : { requestId: saved.id, collectionId: collection.id, rect, name: saved.name }); }} title="More actions"><span aria-hidden="true">•••</span></button>
+          <button className="menu-trigger" onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setMenuState(menuState?.requestId === saved.id ? null : { requestId: saved.id, collectionId: collection.id, rect, name: saved.name }); }} title="More actions"><span aria-hidden="true">•••</span></button>
         </div>
       </div>
     );
@@ -1492,38 +1433,16 @@ function App() {
         )}
         {collections.length === 0 && <p className="muted">No collections yet.</p>}
         {collections.length > 0 && filteredCollections.length === 0 && <p className="muted small">No matching results.</p>}
+        <DndContext sensors={treeSensors} collisionDetection={pointerWithin} onDragStart={(event) => setActiveTreeDrag(event.active.data.current as TreeDragData)} onDragCancel={() => setActiveTreeDrag(null)} onDragEnd={handleTreeDragEnd}>
         <div className="collection-list">
           {filteredCollections.map((collection) => (
             <details className="collection-item" key={collection.id} open={selectedCollectionId === collection.id} onToggle={(event) => { if (event.currentTarget.open) setSelectedCollectionId(collection.id); }}>
-              <summary
-                onDragEnter={(event) => { event.preventDefault(); event.currentTarget.classList.add('drag-over'); }}
-                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over'); }}
-                onDragLeave={(event) => event.currentTarget.classList.remove('drag-over')}
-                data-tree-drop="root"
-              data-collection-id={collection.id}
-              onDrop={(event) => { event.stopPropagation(); handleTreeDrop(event, collection.id); event.currentTarget.classList.remove('drag-over'); }}
-                onMouseEnter={() => { if (treeDragPayload?.collectionId === collection.id) moveTreeDragPayload(collection.id); }}
-                onMouseUp={(event) => { if (!treeDragPayload || treeDragPayload.collectionId !== collection.id) return; event.preventDefault(); event.stopPropagation(); moveTreeDragPayload(collection.id); }}
-              >
-                <span>{collection.name}</span>
+              <summary>
+                <TreeDropZone drop={{ type: 'root', collectionId: collection.id }} className="collection-root-drop"><span>{collection.name}</span></TreeDropZone>
                 <small>{collection.requests.length}</small>
-                <button className="menu-trigger" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCollectionMenuState(collectionMenuState?.collectionId === collection.id ? null : { collectionId: collection.id, rect, name: collection.name }); }} title="Collection actions"><span aria-hidden="true">•••</span></button>
+                <button className="menu-trigger" onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCollectionMenuState(collectionMenuState?.collectionId === collection.id ? null : { collectionId: collection.id, rect, name: collection.name }); }} title="Collection actions"><span aria-hidden="true">•••</span></button>
               </summary>
-              <div
-                className="saved-request-list"
-                onDragEnter={(event) => { event.preventDefault(); event.currentTarget.classList.add('drag-over-root'); }}
-                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over-root'); }}
-                onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.classList.remove('drag-over-root'); }}
-                data-tree-drop="root"
-                data-collection-id={collection.id}
-                onDrop={(event) => {
-                  if ((event.target as HTMLElement).closest('.folder-item')) return;
-                  handleTreeDrop(event, collection.id);
-                  event.currentTarget.classList.remove('drag-over-root');
-                }}
-                onMouseEnter={(event) => { if (!treeDragPayload || treeDragPayload.collectionId !== collection.id || (event.target as HTMLElement).closest('.folder-item')) return; moveTreeDragPayload(collection.id); }}
-                onMouseUp={(event) => { if (!treeDragPayload || treeDragPayload.collectionId !== collection.id || (event.target as HTMLElement).closest('.folder-item')) return; event.preventDefault(); event.stopPropagation(); moveTreeDragPayload(collection.id); }}
-              >
+              <TreeDropZone drop={{ type: 'root', collectionId: collection.id }} className="saved-request-list root-request-drop">
                 {orderedFoldersForTree(collection.folders ?? []).map((folder) => {
                   const folderRequests = collection.requests.filter((saved) => saved.folderId === folder.id);
                   const depth = (() => {
@@ -1540,50 +1459,35 @@ function App() {
                     return level;
                   })();
                   return (
-                    <details
-                      className="folder-item"
-                      key={folder.id}
-                      open
-                      onDragEnter={(event) => { event.preventDefault(); event.currentTarget.classList.add('drag-over'); }}
-                      onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('drag-over'); }}
-                      onDragLeave={(event) => event.currentTarget.classList.remove('drag-over')}
-                      data-tree-drop="folder"
-                      data-collection-id={collection.id}
-                      data-folder-id={folder.id}
-                      onDrop={(event) => { event.stopPropagation(); handleTreeDrop(event, collection.id, folder.id); }}
-                      onMouseEnter={() => { if (treeDragPayload?.collectionId === collection.id) moveTreeDragPayload(collection.id, folder.id); }}
-                      onMouseUp={(event) => { if (!treeDragPayload || treeDragPayload.collectionId !== collection.id) return; event.preventDefault(); event.stopPropagation(); moveTreeDragPayload(collection.id, folder.id); }}
-                      style={{ marginLeft: depth ? Math.min(depth * 10, 30) : 0 }}
-                    >
-                      <summary
-                        draggable
-                        onPointerDown={(event) => { const payload = { type: 'folder' as const, collectionId: collection.id, id: folder.id }; setPointerTreePayload(payload); startPointerTreeDrag(event, payload); }}
-                        onPointerMove={handlePointerTreeDragMove}
-                        onPointerUp={handlePointerTreeDragEnd}
-                        onPointerCancel={handlePointerTreeDragEnd}
-                        onDragStart={(event) => {
-                          event.stopPropagation();
-                          setTreeDragData(event, { type: 'folder', collectionId: collection.id, id: folder.id });
-                        }}
-                        onDragEnd={handleTreeDragEnd}
+                    <TreeDropZone key={folder.id} drop={{ type: 'folder', collectionId: collection.id, folderId: folder.id }} className="folder-drop-wrap">
+                      <details
+                        className="folder-item"
+                        open
+                        style={{ marginLeft: depth ? Math.min(depth * 10, 30) : 0 }}
                       >
-                        <span className="folder-name"><span className="folder-icon" aria-hidden="true" />{folder.name}</span>
-                        <small>{folderRequests.length}</small>
-                        <button className="menu-trigger" onClick={(e) => { e.preventDefault(); e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setFolderMenuState(folderMenuState?.folderId === folder.id ? null : { collectionId: collection.id, folderId: folder.id, rect, name: folder.name }); }} title="Folder actions"><span aria-hidden="true">•••</span></button>
-                      </summary>
-                      <div className="folder-requests">
-                        {folderRequests.map((saved) => renderSavedRequest(collection, saved))}
-                        {folderRequests.length === 0 && <p className="muted small">No requests in this folder.</p>}
-                      </div>
-                    </details>
+                        <summary>
+                          <DraggableTreeButton className="folder-drag-button" payload={{ type: 'folder', collectionId: collection.id, id: folder.id }} title="Drag folder to move">
+                            <span className="folder-name"><span className="folder-icon" aria-hidden="true" />{folder.name}</span>
+                            <small>{folderRequests.length}</small>
+                          </DraggableTreeButton>
+                          <button className="menu-trigger" onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setFolderMenuState(folderMenuState?.folderId === folder.id ? null : { collectionId: collection.id, folderId: folder.id, rect, name: folder.name }); }} title="Folder actions"><span aria-hidden="true">•••</span></button>
+                        </summary>
+                        <div className="folder-requests">
+                          {folderRequests.map((saved) => renderSavedRequest(collection, saved))}
+                          {folderRequests.length === 0 && <p className="muted small">No requests in this folder.</p>}
+                        </div>
+                      </details>
+                    </TreeDropZone>
                   );
                 })}
                 {collection.requests.filter((saved) => !saved.folderId).map((saved) => renderSavedRequest(collection, saved))}
                 {collection.requests.length === 0 && <p className="muted small">No saved requests.</p>}
-              </div>
+              </TreeDropZone>
             </details>
           ))}
         </div>
+          <DragOverlay>{activeTreeDrag ? <div className="tree-drag-overlay">{activeTreeDrag.type === 'folder' ? 'Folder' : 'Request'}</div> : null}</DragOverlay>
+        </DndContext>
 
         <div className="collections-header" style={{ marginTop: 28 }}>
           <h3>Environment</h3>
@@ -1931,12 +1835,6 @@ function App() {
         </div>
       </section>
       </div>
-
-      {pointerDragPayload && (
-        <div className="tree-drag-ghost" style={{ left: pointerDragPayload.x + 10, top: pointerDragPayload.y + 10 }}>
-          {pointerDragPayload.type === 'folder' ? 'Folder' : 'Request'}
-        </div>
-      )}
 
       {toastMessage && <div className="toast-message" role="status" aria-live="polite">{toastMessage}</div>}
 
