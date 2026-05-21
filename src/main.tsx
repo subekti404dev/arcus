@@ -18,7 +18,7 @@ import './styles.css';
 type TreeDragData = { type: 'request' | 'folder'; collectionId: string; id: string };
 type TreeDropData = { type: 'root' | 'folder'; collectionId: string; folderId?: string };
 
-function DraggableTreeButton({ payload, className, onClick, title, children }: { payload: TreeDragData; className?: string; onClick?: () => void; title: string; children: React.ReactNode }) {
+function DraggableTreeButton({ payload, className, onClick, title, children }: { payload: TreeDragData; className?: string; onClick?: React.MouseEventHandler<HTMLButtonElement>; title: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `tree-${payload.type}-${payload.id}`, data: payload });
   return (
     <button
@@ -1466,7 +1466,7 @@ function App() {
                         style={{ marginLeft: depth ? Math.min(depth * 10, 30) : 0 }}
                       >
                         <summary>
-                          <DraggableTreeButton className="folder-drag-button" payload={{ type: 'folder', collectionId: collection.id, id: folder.id }} title="Drag folder to move">
+                          <DraggableTreeButton className="folder-drag-button" payload={{ type: 'folder', collectionId: collection.id, id: folder.id }} title="Drag folder to move" onClick={(event) => { const details = (event.currentTarget as HTMLElement).closest('details'); if (details) details.open = !details.open; }}>
                             <span className="folder-name"><span className="folder-icon" aria-hidden="true" />{folder.name}</span>
                             <small>{folderRequests.length}</small>
                           </DraggableTreeButton>
