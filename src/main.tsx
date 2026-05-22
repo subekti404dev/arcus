@@ -934,6 +934,12 @@ function App() {
     applyBulkEnvVars(text);
   }
 
+  function parseBulkValue(value: string) {
+    const trimmed = value.trim();
+    if (trimmed === '""' || trimmed === "''") return '';
+    return trimmed;
+  }
+
   function applyBulkEnvVars(text: string) {
     const parsed: { key: string; value: string; enabled: boolean }[] = [];
     for (const line of text.split('\n')) {
@@ -942,7 +948,7 @@ function App() {
       const idx = content.indexOf(':');
       if (idx === -1) continue;
       const key = content.slice(0, idx).trim();
-      const value = content.slice(idx + 1).trim();
+      const value = parseBulkValue(content.slice(idx + 1));
       if (key) parsed.push({ key, value, enabled: !hasPrefix });
     }
     setEnvVars(parsed);
@@ -956,7 +962,7 @@ function App() {
       const idx = content.indexOf(':');
       if (idx === -1) continue;
       const key = content.slice(0, idx).trim();
-      const value = content.slice(idx + 1).trim();
+      const value = parseBulkValue(content.slice(idx + 1));
       if (key) parsed.push({ id: uid(), key, value, enabled: !hasPrefix });
     }
     setHeaders(parsed.length > 0 ? parsed : defaultHeaders());
@@ -996,7 +1002,7 @@ function App() {
       const idx = content.indexOf(':');
       if (idx === -1) continue;
       const key = content.slice(0, idx).trim();
-      const value = content.slice(idx + 1).trim();
+      const value = parseBulkValue(content.slice(idx + 1));
       if (key) rows.push({ id: uid(), key, value, enabled: !hasPrefix });
     }
     setUrlFromQueryRows(rows);
